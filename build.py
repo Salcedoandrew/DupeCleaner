@@ -56,6 +56,12 @@ def parse_args():
         dest="modules",
         help="Build the python modules.",
     )
+    parser.add_option(
+        "--qt",
+        action="store_true",
+        dest="qt",
+        help="Compile the Qt resources (qt/dg.qrc) into qt/dg_rc.py.",
+    )
     (options, args) = parser.parse_args()
     return options
 
@@ -121,6 +127,15 @@ def build_pe_modules():
     subprocess.check_call([sys.executable, "setup.py", "build_ext", "--inplace"])
 
 
+def build_qt_resources():
+    print("Building Qt resources")
+    Path("qt", "dg_rc.py").unlink(missing_ok=True)
+    ret = print_and_do("pyrcc5 {} > {}".format(Path("qt", "dg.qrc"), Path("qt", "dg_rc.py")))
+    if ret != 0:
+        raise RuntimeError("pyrcc5 failed with exit code %d" % ret)
+    fix_qt_resource_file(Path("qt", "dg_rc.py"))
+
+
 def build_normal():
     print("Building DupeCleaner with UI qt")
     add_to_pythonpath(".")
@@ -129,9 +144,7 @@ def build_normal():
     print("Building localizations")
     build_localizations()
     print("Building Qt stuff")
-    Path("qt", "dg_rc.py").unlink(missing_ok=True)
-    print_and_do("pyrcc5 {} > {}".format(Path("qt", "dg.qrc"), Path("qt", "dg_rc.py")))
-    fix_qt_resource_file(Path("qt", "dg_rc.py"))
+    build_qt_resources()
     build_help()
 
 
@@ -157,6 +170,8 @@ def main():
         build_normpo()
     elif options.modules:
         build_pe_modules()
+    elif options.qt:
+        build_qt_resources()
     else:
         build_normal()
 

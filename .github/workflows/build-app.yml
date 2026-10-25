@@ -31,6 +31,7 @@ jobs:
       - name: Build C modules, locales and help
         run: |
           python build.py --modules
+          python build.py --qt
           python build.py --loc
           python build.py --doc
       - name: Install NSIS (Windows installer)
