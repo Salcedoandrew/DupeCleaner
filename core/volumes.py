@@ -25,6 +25,7 @@ a platform call was unavailable. On any error or unknown platform,
 import ctypes
 import multiprocessing
 import os
+import posixpath
 import sys
 
 # kDolphin/Fast_Duplicate_Finder benched 6 hash workers as the sweet spot
@@ -144,7 +145,10 @@ class _LinuxMountTable:
         self._entries = sorted(entries, key=lambda entry: len(entry[0]), reverse=True)
 
     def fstype_for(self, path):
-        path = os.path.abspath(os.fspath(path))
+        # POSIX rules, not os.path: the table and the paths are Linux
+        # /proc/mounts data, and os.path.abspath on Windows would turn
+        # "/mnt/nas/..." into "C:\\mnt\\nas\\..." so nothing matched.
+        path = posixpath.normpath(os.fspath(path))
         for mountpoint, fstype in self._entries:
             if mountpoint == "/":
                 return fstype
