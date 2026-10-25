@@ -325,7 +325,7 @@ class DirectoriesDialog(QMainWindow):
 
     def loadResultsTriggered(self):
         title = tr("Select a results file to load")
-        files = ";;".join([tr("dupeGuru Results (*.dupeguru)"), tr("All Files (*.*)")])
+        files = ";;".join([tr("DupeCleaner Results (*.dupecleaner)"), tr("All Files (*.*)")])
         destination = QFileDialog.getOpenFileName(self, title, "", files)[0]
         if destination:
             self.app.model.load_from(destination)
@@ -333,7 +333,7 @@ class DirectoriesDialog(QMainWindow):
 
     def loadDirectoriesTriggered(self):
         title = tr("Select a directories file to load")
-        files = ";;".join([tr("dupeGuru Directories (*.dupegurudirs)"), tr("All Files (*.*)")])
+        files = ";;".join([tr("DupeCleaner Directories (*.dupecleanerdirs)"), tr("All Files (*.*)")])
         destination = QFileDialog.getOpenFileName(self, title, "", files)[0]
         if destination:
             self.app.model.load_directories(destination)
@@ -343,11 +343,11 @@ class DirectoriesDialog(QMainWindow):
 
     def saveDirectoriesTriggered(self):
         title = tr("Select a file to save your directories to")
-        files = tr("dupeGuru Directories (*.dupegurudirs)")
+        files = tr("DupeCleaner Directories (*.dupecleanerdirs)")
         destination, chosen_filter = QFileDialog.getSaveFileName(self, title, "", files)
         if destination:
-            if not destination.endswith(".dupegurudirs"):
-                destination = f"{destination}.dupegurudirs"
+            if not destination.endswith(".dupecleanerdirs"):
+                destination = f"{destination}.dupecleanerdirs"
             self.app.model.save_directories_as(destination)
 
     def scanButtonClicked(self):

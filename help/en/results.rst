@@ -3,16 +3,16 @@ Results
 
 .. contents::
 
-When dupeGuru is finished scanning for duplicates, it will show its results in the form of duplicate group list.
+When DupeCleaner is finished scanning for duplicates, it will show its results in the form of duplicate group list.
 
 About duplicate groups
 ----------------------
 
 A duplicate group is a group of files that all match together. Every group has a **reference file** and one or more **duplicate files**. The reference file is the first file of the group. Its mark box is disabled. Below it, and indented, are the duplicate files.
 
-You can mark duplicate files, but you can never mark the reference file of a group. This is a security measure to prevent dupeGuru from deleting not only duplicate files, but their reference. You sure don't want that, do you?
+You can mark duplicate files, but you can never mark the reference file of a group. This is a security measure to prevent DupeCleaner from deleting not only duplicate files, but their reference. You sure don't want that, do you?
 
-What determines which files are reference and which files are duplicates is first their folder state. A file from a reference folder will always be reference in a duplicate group. If all files are from a normal folder, the size determine which file will be the reference of a duplicate group. dupeGuru assumes that you always want to keep the biggest file, so the biggest files will take the reference position.
+What determines which files are reference and which files are duplicates is first their folder state. A file from a reference folder will always be reference in a duplicate group. If all files are from a normal folder, the size determine which file will be the reference of a duplicate group. DupeCleaner assumes that you always want to keep the biggest file, so the biggest files will take the reference position.
 
 You can change the reference file of a group manually. To do so, select the duplicate file you want
 to promote to reference, and click on **Actions-->Make Selected into Reference**.
@@ -29,14 +29,14 @@ If you have more false duplicates than true duplicates (If your filter hardness 
 Marking and Selecting
 ---------------------
 
-A **marked** duplicate is a duplicate with the little box next to it having a check-mark. A **selected** duplicate is a duplicate being highlighted. The multiple selection actions can be performed in dupeGuru in the standard way (Shift/Command/Control click). You can toggle all selected duplicates' mark state by pressing **space**.
+A **marked** duplicate is a duplicate with the little box next to it having a check-mark. A **selected** duplicate is a duplicate being highlighted. The multiple selection actions can be performed in DupeCleaner in the standard way (Shift/Command/Control click). You can toggle all selected duplicates' mark state by pressing **space**.
 
 Show Dupes Only
 ---------------
 
 When this mode is enabled, the duplicates are shown without their respective reference file. You can select, mark and sort this list, just like in normal mode.
 
-The dupeGuru results, when in normal mode, are sorted according to duplicate groups' **reference file**. This means that if you want, for example, to mark all duplicates with the "exe" extension, you cannot just sort the results by "Kind" to have all exe duplicates together because a group can be composed of more than one kind of files. That is where Dupes Only mode comes into play. To mark all your "exe" duplicates, you just have to:
+The DupeCleaner results, when in normal mode, are sorted according to duplicate groups' **reference file**. This means that if you want, for example, to mark all duplicates with the "exe" extension, you cannot just sort the results by "Kind" to have all exe duplicates together because a group can be composed of more than one kind of files. That is where Dupes Only mode comes into play. To mark all your "exe" duplicates, you just have to:
 
 * Enable the Dupes Only mode.
 * Add the "Kind" column with the "Columns" menu.
@@ -90,7 +90,7 @@ modified.
 Filtering
 ---------
 
-dupeGuru supports post-scan filtering. With it, you can narrow down your results so you can perform
+DupeCleaner supports post-scan filtering. With it, you can narrow down your results so you can perform
 actions on a subset of it. For example, you could easily mark all duplicates with their filename
 containing "copy" from your results using the filter.
 
@@ -183,11 +183,11 @@ any of them.
 
     On OSX and Linux, this feature is supported fully, but under Windows, it's a bit complicated.
     Windows XP doesn't support it, but Vista and up support it. However, for the feature to work,
-    dupeGuru has to run with administrative privileges.
+    DupeCleaner has to run with administrative privileges.
 
 **Directly delete files:**
     Instead of sending files to trash, directly delete them. This is used
-    for troubleshooting and you normally don't need to enable this unless dupeGuru has problems
+    for troubleshooting and you normally don't need to enable this unless DupeCleaner has problems
     deleting files normally, something that can happens when you try to delete files on network
     storage (NAS).
 

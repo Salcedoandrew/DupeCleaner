@@ -78,7 +78,7 @@ JOBID2TITLE = {
 }
 
 
-class DupeGuru(Broadcaster):
+class DupeCleaner(Broadcaster):
     """Holds everything together.
 
     Instantiated once per running application, it holds a reference to every high-level object
@@ -124,7 +124,7 @@ class DupeGuru(Broadcaster):
     # select_dest_folder(prompt: str) --> str
     # select_dest_file(prompt: str, ext: str) --> str
 
-    NAME = PROMPT_NAME = "dupeGuru"
+    NAME = PROMPT_NAME = "DupeCleaner"
 
     def __init__(self, view, portable=False):
         if view.get_default(DEBUG_MODE_PREFERENCE):
@@ -744,7 +744,7 @@ class DupeGuru(Broadcaster):
             d.rename(newname)
             return True
         except (IndexError, fs.FSError) as e:
-            logging.warning("dupeGuru Warning: %s" % str(e))
+            logging.warning("DupeCleaner Warning: %s" % str(e))
         return False
 
     def reprioritize_groups(self, sort_key):

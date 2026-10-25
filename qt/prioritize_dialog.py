@@ -30,7 +30,7 @@ from core.gui.prioritize_dialog import PrioritizeDialog as PrioritizeDialogModel
 
 tr = trget("ui")
 
-MIME_INDEXES = "application/dupeguru.rowindexes"
+MIME_INDEXES = "application/dupecleaner.rowindexes"
 
 
 class PrioritizationList(ListviewModel):

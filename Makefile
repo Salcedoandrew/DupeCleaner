@@ -44,7 +44,7 @@ vpath %.po $(localedirs)
 vpath %.mo $(localedirs)
 
 all: | env i18n modules qt/dg_rc.py
-	@echo "Build complete! You can run dupeGuru with 'make run'"
+	@echo "Build complete! You can run DupeCleaner with 'make run'"
 
 run:
 	$(VENV_PYTHON) run.py
@@ -94,26 +94,26 @@ normpo: | env
 	$(VENV_PYTHON) build.py --normpo
 
 install: all pyc
-	mkdir -p ${DESTDIR}${PREFIX}/share/dupeguru
-	cp -rf ${packages} locale ${DESTDIR}${PREFIX}/share/dupeguru
-	cp -f run.py ${DESTDIR}${PREFIX}/share/dupeguru/run.py
-	chmod 755 ${DESTDIR}${PREFIX}/share/dupeguru/run.py
+	mkdir -p ${DESTDIR}${PREFIX}/share/dupecleaner
+	cp -rf ${packages} locale ${DESTDIR}${PREFIX}/share/dupecleaner
+	cp -f run.py ${DESTDIR}${PREFIX}/share/dupecleaner/run.py
+	chmod 755 ${DESTDIR}${PREFIX}/share/dupecleaner/run.py
 	mkdir -p ${DESTDIR}${PREFIX}/bin
-	ln -sf ${PREFIX}/share/dupeguru/run.py ${DESTDIR}${PREFIX}/bin/dupeguru
+	ln -sf ${PREFIX}/share/dupecleaner/run.py ${DESTDIR}${PREFIX}/bin/dupecleaner
 	mkdir -p ${DESTDIR}${PREFIX}/share/applications
-	cp -f pkg/dupeguru.desktop ${DESTDIR}${PREFIX}/share/applications
+	cp -f pkg/dupecleaner.desktop ${DESTDIR}${PREFIX}/share/applications
 	mkdir -p ${DESTDIR}${PREFIX}/share/pixmaps
-	cp -f images/dgse_logo_128.png ${DESTDIR}${PREFIX}/share/pixmaps/dupeguru.png
+	cp -f images/dgse_logo_128.png ${DESTDIR}${PREFIX}/share/pixmaps/dupecleaner.png
 
 installdocs: build/help
-	mkdir -p ${DESTDIR}${PREFIX}/share/dupeguru
-	cp -rf build/help ${DESTDIR}${PREFIX}/share/dupeguru
+	mkdir -p ${DESTDIR}${PREFIX}/share/dupecleaner
+	cp -rf build/help ${DESTDIR}${PREFIX}/share/dupecleaner
 
 uninstall:
-	rm -rf "${DESTDIR}${PREFIX}/share/dupeguru"
-	rm -f "${DESTDIR}${PREFIX}/bin/dupeguru"
-	rm -f "${DESTDIR}${PREFIX}/share/applications/dupeguru.desktop"
-	rm -f "${DESTDIR}${PREFIX}/share/pixmaps/dupeguru.png"
+	rm -rf "${DESTDIR}${PREFIX}/share/dupecleaner"
+	rm -f "${DESTDIR}${PREFIX}/bin/dupecleaner"
+	rm -f "${DESTDIR}${PREFIX}/share/applications/dupecleaner.desktop"
+	rm -f "${DESTDIR}${PREFIX}/share/pixmaps/dupecleaner.png"
 
 clean:
 	-rm -rf build

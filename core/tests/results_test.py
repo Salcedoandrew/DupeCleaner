@@ -13,13 +13,13 @@ from pytest import raises
 from hscommon.testutil import eq_
 from hscommon.util import first
 from core import engine
-from core.tests.base import NamedObject, GetTestGroups, DupeGuru
+from core.tests.base import NamedObject, GetTestGroups, DupeCleaner
 from core.results import Results
 
 
 class TestCaseResultsEmpty:
     def setup_method(self, method):
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.results = self.app.results
 
     def test_apply_invalid_filter(self):
@@ -67,7 +67,7 @@ class TestCaseResultsEmpty:
 
 class TestCaseResultsWithSomeGroups:
     def setup_method(self, method):
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.results = self.app.results
         self.objects, self.matches, self.groups = GetTestGroups()
         self.results.groups = self.groups
@@ -186,7 +186,7 @@ class TestCaseResultsWithSomeGroups:
 
     def test_sort_empty_list(self):
         # There was an infinite loop when sorting an empty list.
-        app = DupeGuru()
+        app = DupeCleaner()
         r = app.results
         r.sort_dupes("name")
         eq_([], r.dupes)
@@ -250,7 +250,7 @@ class TestCaseResultsWithSomeGroups:
 
 class TestCaseResultsWithSavedResults:
     def setup_method(self, method):
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.results = self.app.results
         self.objects, self.matches, self.groups = GetTestGroups()
         self.results.groups = self.groups
@@ -284,7 +284,7 @@ class TestCaseResultsWithSavedResults:
 
 class TestCaseResultsMarkings:
     def setup_method(self, method):
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.results = self.app.results
         self.objects, self.matches, self.groups = GetTestGroups()
         self.results.groups = self.groups
@@ -428,7 +428,7 @@ class TestCaseResultsMarkings:
         f = io.BytesIO()
         self.results.save_to_xml(f)
         f.seek(0)
-        app = DupeGuru()
+        app = DupeCleaner()
         r = Results(app)
         r.load_from_xml(f, get_file)
         assert not r.is_marked(self.objects[0])
@@ -440,7 +440,7 @@ class TestCaseResultsMarkings:
 
 class TestCaseResultsXML:
     def setup_method(self, method):
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.results = self.app.results
         self.objects, self.matches, self.groups = GetTestGroups()
         self.results.groups = self.groups
@@ -493,7 +493,7 @@ class TestCaseResultsXML:
         f = io.BytesIO()
         self.results.save_to_xml(f)
         f.seek(0)
-        app = DupeGuru()
+        app = DupeCleaner()
         r = Results(app)
         r.load_from_xml(f, get_file)
         eq_(2, len(r.groups))
@@ -520,10 +520,10 @@ class TestCaseResultsXML:
         def get_file(path):
             return [f for f in self.objects if str(f.path) == path][0]
 
-        filename = str(tmpdir.join("dupeguru_results.xml"))
+        filename = str(tmpdir.join("dupecleaner_results.xml"))
         self.objects[4].name = "ibabtu 2"  # we can't have 2 files with the same path
         self.results.save_to_xml(filename)
-        app = DupeGuru()
+        app = DupeCleaner()
         r = Results(app)
         r.load_from_xml(filename, get_file)
         eq_(2, len(r.groups))
@@ -538,7 +538,7 @@ class TestCaseResultsXML:
         f = io.BytesIO()
         self.results.save_to_xml(f)
         f.seek(0)
-        app = DupeGuru()
+        app = DupeCleaner()
         r = Results(app)
         r.load_from_xml(f, get_file)
         eq_(1, len(r.groups))
@@ -579,7 +579,7 @@ class TestCaseResultsXML:
         tree = ET.ElementTree(root)
         tree.write(f, encoding="utf-8")
         f.seek(0)
-        app = DupeGuru()
+        app = DupeCleaner()
         r = Results(app)
         r.load_from_xml(f, get_file)
         eq_(1, len(r.groups))
@@ -597,13 +597,13 @@ class TestCaseResultsXML:
         groups = engine.get_groups(matches)  # We should have 2 groups
         for g in groups:
             g.prioritize(lambda x: objects.index(x))  # We want the dupes to be in the same order as the list is
-        app = DupeGuru()
+        app = DupeCleaner()
         results = Results(app)
         results.groups = groups
         f = io.BytesIO()
         results.save_to_xml(f)
         f.seek(0)
-        app = DupeGuru()
+        app = DupeCleaner()
         r = Results(app)
         r.load_from_xml(f, get_file)
         g = r.groups[0]
@@ -614,14 +614,14 @@ class TestCaseResultsXML:
         f = io.BytesIO()
         f.write(b"<this is invalid")
         f.seek(0)
-        app = DupeGuru()
+        app = DupeCleaner()
         r = Results(app)
         with raises(ET.ParseError):
             r.load_from_xml(f, None)
         eq_(0, len(r.groups))
 
     def test_load_non_existant_xml(self):
-        app = DupeGuru()
+        app = DupeCleaner()
         r = Results(app)
         with raises(IOError):
             r.load_from_xml("does_not_exist.xml", None)
@@ -639,7 +639,7 @@ class TestCaseResultsXML:
         results = self.results
         results.save_to_xml(f)
         f.seek(0)
-        app = DupeGuru()
+        app = DupeCleaner()
         results = Results(app)
         results.load_from_xml(f, self.get_file)
         group = results.groups[0]
@@ -673,7 +673,7 @@ class TestCaseResultsXML:
 
 class TestCaseResultsFilter:
     def setup_method(self, method):
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.results = self.app.results
         self.objects, self.matches, self.groups = GetTestGroups()
         self.results.groups = self.groups
@@ -765,10 +765,10 @@ class TestCaseResultsFilter:
         def get_file(path):
             return [f for f in self.objects if str(f.path) == path][0]
 
-        filename = str(tmpdir.join("dupeguru_results.xml"))
+        filename = str(tmpdir.join("dupecleaner_results.xml"))
         self.objects[4].name = "ibabtu 2"  # we can't have 2 files with the same path
         self.results.save_to_xml(filename)
-        app = DupeGuru()
+        app = DupeCleaner()
         r = Results(app)
         r.apply_filter("foo")
         r.load_from_xml(filename, get_file)
@@ -807,7 +807,7 @@ class TestCaseResultsFilter:
 
 class TestCaseResultsRefFile:
     def setup_method(self, method):
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.results = self.app.results
         self.objects, self.matches, self.groups = GetTestGroups()
         self.objects[0].is_ref = True
@@ -846,7 +846,7 @@ class TestCaseResultsRefFile:
 def test_save_load_keeps_size_and_mtime(tmpdir):
     # save_to_xml stores size/mtime so a later load can tell whether a file
     # changed since the scan before deleting it (see core/app.py).
-    app = DupeGuru()
+    app = DupeCleaner()
     objects, matches, groups = GetTestGroups()
     objects[1].mtime = 1234567.0
     app.results.groups = groups
@@ -856,7 +856,7 @@ def test_save_load_keeps_size_and_mtime(tmpdir):
     def get_file(path):
         return [f for f in objects if str(f.path) == path][0]
 
-    loaded = Results(DupeGuru())
+    loaded = Results(DupeCleaner())
     loaded.load_from_xml(filename, get_file)
     by_path = {str(f.path): f for g in loaded.groups for f in g}
     eq_(1024, by_path[str(objects[1].path)].size)

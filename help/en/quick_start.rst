@@ -1,9 +1,9 @@
 Quick Start
 ===========
 
-To get you quickly started with dupeGuru, let's just make a standard scan using default preferences.
+To get you quickly started with DupeCleaner, let's just make a standard scan using default preferences.
 
-* Launch dupeGuru.
+* Launch DupeCleaner.
 * Add folders to scan with either drag & drop or the "+" button.
 * Click on **Scan**.
 * Wait until the scan process is over.

@@ -2,7 +2,7 @@
 # which should be included with this package. The terms are also available at
 # http://www.gnu.org/licenses/gpl-3.0.html
 
-from core.gui.base import DupeGuruGUIObject
+from core.gui.base import DupeCleanerGUIObject
 from hscommon.gui.table import GUITable, Row
 from hscommon.gui.column import Column, Columns
 from hscommon.trans import trget
@@ -10,12 +10,12 @@ from hscommon.trans import trget
 tr = trget("ui")
 
 
-class ExcludeListTable(GUITable, DupeGuruGUIObject):
+class ExcludeListTable(GUITable, DupeCleanerGUIObject):
     COLUMNS = [Column("marked", ""), Column("regex", tr("Regular Expressions"))]
 
     def __init__(self, exclude_list_dialog, app):
         GUITable.__init__(self)
-        DupeGuruGUIObject.__init__(self, app)
+        DupeCleanerGUIObject.__init__(self, app)
         self._columns = Columns(self)
         self.dialog = exclude_list_dialog
 

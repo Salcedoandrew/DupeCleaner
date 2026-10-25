@@ -11,7 +11,7 @@ from operator import attrgetter
 from hscommon.gui.table import GUITable, Row
 from hscommon.gui.column import Columns
 
-from core.gui.base import DupeGuruGUIObject
+from core.gui.base import DupeCleanerGUIObject
 
 
 class DupeRow(Row):
@@ -78,10 +78,10 @@ class DupeRow(Row):
         self._app.mark_dupe(self._dupe, value)
 
 
-class ResultTable(GUITable, DupeGuruGUIObject):
+class ResultTable(GUITable, DupeCleanerGUIObject):
     def __init__(self, app):
         GUITable.__init__(self)
-        DupeGuruGUIObject.__init__(self, app)
+        DupeCleanerGUIObject.__init__(self, app)
         self._columns = Columns(self, prefaccess=app, savename="ResultTable")
         self._power_marker = False
         self._delta_values = False

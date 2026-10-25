@@ -10,7 +10,7 @@ from xml.etree import ElementTree as ET
 from hscommon.testutil import eq_
 from hscommon.plat import ISWINDOWS
 
-from core.tests.base import DupeGuru
+from core.tests.base import DupeCleaner
 from core.exclude import ExcludeList, ExcludeDict, default_regexes, AlreadyThereException
 
 from re import error
@@ -93,7 +93,7 @@ class TestCaseDictXMLLoading(TestCaseListXMLLoading):
 
 class TestCaseListEmpty:
     def setup_method(self, method):
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.app.exclude_list = ExcludeList(union_regex=False)
         self.exclude_list = self.app.exclude_list
 
@@ -231,7 +231,7 @@ class TestCaseListEmptyUnion(TestCaseListEmpty):
     """Same but with union regex"""
 
     def setup_method(self, method):
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.app.exclude_list = ExcludeList(union_regex=True)
         self.exclude_list = self.app.exclude_list
 
@@ -299,7 +299,7 @@ class TestCaseDictEmpty(TestCaseListEmpty):
     """Same, but with dictionary implementation"""
 
     def setup_method(self, method):
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.app.exclude_list = ExcludeDict(union_regex=False)
         self.exclude_list = self.app.exclude_list
 
@@ -308,7 +308,7 @@ class TestCaseDictEmptyUnion(TestCaseDictEmpty):
     """Same, but with union regex"""
 
     def setup_method(self, method):
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.app.exclude_list = ExcludeDict(union_regex=True)
         self.exclude_list = self.app.exclude_list
 

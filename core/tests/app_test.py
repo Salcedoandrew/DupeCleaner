@@ -27,7 +27,7 @@ def add_fake_files_to_directories(directories, files):
     directories._dirs.append("this is just so Scan() doesn't return 3")
 
 
-class TestCaseDupeGuru:
+class TestCaseDupeCleaner:
     def test_apply_filter_calls_results_apply_filter(self, monkeypatch):
         dgapp = TestApp().app
         monkeypatch.setattr(dgapp.results, "apply_filter", log_calls(dgapp.results.apply_filter))
@@ -126,7 +126,7 @@ class TestCaseDupeGuru:
         assert not dgapp.result_table.rename_selected("foo")  # no crash
 
 
-class TestCaseDupeGuruCleanEmptyDirs:
+class TestCaseDupeCleanerCleanEmptyDirs:
     @pytest.fixture
     def do_setup(self, request):
         monkeypatch = request.getfixturevalue("monkeypatch")
@@ -169,7 +169,7 @@ class TestCaseDupeGuruCleanEmptyDirs:
         eq_(Path("not-empty"), calls[2]["path"])
 
 
-class TestCaseDupeGuruWithResults:
+class TestCaseDupeCleanerWithResults:
     @pytest.fixture
     def do_setup(self, request):
         app = TestApp()
@@ -421,7 +421,7 @@ class TestCaseDupeGuruWithResults:
         # don't crash
 
 
-class TestCaseDupeGuruRenameSelected:
+class TestCaseDupeCleanerRenameSelected:
     @pytest.fixture
     def do_setup(self, request):
         tmpdir = request.getfixturevalue("tmpdir")
@@ -462,7 +462,7 @@ class TestCaseDupeGuruRenameSelected:
         monkeypatch.setattr(logging, "warning", log_calls(lambda msg: None))
         assert not app.rename_selected("renamed")
         msg = logging.warning.calls[0]["msg"]
-        eq_("dupeGuru Warning: list index out of range", msg)
+        eq_("DupeCleaner Warning: list index out of range", msg)
         names = [p.name for p in self.p.glob("*")]
         assert "renamed" not in names
         assert "foo bar 2" in names
@@ -475,7 +475,7 @@ class TestCaseDupeGuruRenameSelected:
         monkeypatch.setattr(logging, "warning", log_calls(lambda msg: None))
         assert not app.rename_selected("foo bar 1")
         msg = logging.warning.calls[0]["msg"]
-        assert msg.startswith("dupeGuru Warning: 'foo bar 1' already exists in")
+        assert msg.startswith("DupeCleaner Warning: 'foo bar 1' already exists in")
         names = [p.name for p in self.p.glob("*")]
         assert "foo bar 1" in names
         assert "foo bar 2" in names
@@ -513,9 +513,9 @@ def test_do_delete_dupe_refuses_changed_file(tmpdir):
     # The file was edited after the scan: deleting it would trash the new
     # version while the untouched reference stays. The delete must refuse
     # and the file must still be there.
-    from core.tests.base import DupeGuru
+    from core.tests.base import DupeCleaner
 
-    app = DupeGuru()
+    app = DupeCleaner()
     p = Path(str(tmpdir)).joinpath("photo.jpg")
     p.write_bytes(b"original-content")
     dupe = fs.get_file(p, [fs.File])
@@ -530,9 +530,9 @@ def test_do_delete_dupe_refuses_changed_file(tmpdir):
 def test_do_delete_dupe_removes_unchanged_file(tmpdir):
     # The control case: a file that did not change since the scan is
     # deleted as before (direct deletion here, so no trash is involved).
-    from core.tests.base import DupeGuru
+    from core.tests.base import DupeCleaner
 
-    app = DupeGuru()
+    app = DupeCleaner()
     p = Path(str(tmpdir)).joinpath("photo.jpg")
     p.write_bytes(b"original-content")
     dupe = fs.get_file(p, [fs.File])

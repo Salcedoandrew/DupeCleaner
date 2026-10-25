@@ -466,11 +466,11 @@ class ResultWindow(QMainWindow):
 
     def saveResultsTriggered(self):
         title = tr("Select a file to save your results to")
-        files = tr("dupeGuru Results (*.dupeguru)")
+        files = tr("DupeCleaner Results (*.dupecleaner)")
         destination, chosen_filter = QFileDialog.getSaveFileName(self, title, "", files)
         if destination:
-            if not destination.endswith(".dupeguru"):
-                destination = f"{destination}.dupeguru"
+            if not destination.endswith(".dupecleaner"):
+                destination = f"{destination}.dupecleaner"
             self.app.model.save_as(destination)
             self.app.recentResults.insertItem(destination)
 

@@ -3,7 +3,7 @@ Developer Guide
 
 When looking at a non-trivial codebase for the first time, it's very difficult to understand
 anything of it until you get the "Big Picture". This page is meant to, hopefully, make you get
-dupeGuru's big picture.
+DupeCleaner's big picture.
 
 Branches and tags
 -----------------
@@ -22,17 +22,17 @@ v2.8.2 release.
 Model/View/Controller... nope!
 ------------------------------
 
-dupeGuru's codebase has quite a few design flaws. The Model, View and Controller roles are filled by
+DupeCleaner's codebase has quite a few design flaws. The Model, View and Controller roles are filled by
 different classes, scattered around. If you're aware of that, it might help you to understand what
 the heck is going on.
 
-The central piece of dupeGuru is :class:`core.app.DupeGuru`. It's the only
+The central piece of DupeCleaner is :class:`core.app.DupeCleaner`. It's the only
 interface to the python's code for the GUI code. A duplicate scan is started with
-:meth:`core.app.DupeGuru.start_scanning()`, directories are added through
-:meth:`core.app.DupeGuru.add_directory()`, etc..
+:meth:`core.app.DupeCleaner.start_scanning()`, directories are added through
+:meth:`core.app.DupeCleaner.add_directory()`, etc..
 
 A lot of functionalities of the App are implemented in the platform-specific subclasses of
-:class:`core.app.DupeGuru`, like ``DupeGuru`` in ``cocoa/inter/app.py``, or the ``DupeGuru`` class
+:class:`core.app.DupeCleaner`, like ``DupeCleaner`` in ``cocoa/inter/app.py``, or the ``DupeCleaner`` class
 in ``qt/base/app.py``. For example, when performing "Remove Selected From Results",
 ``RemoveSelected()`` on the cocoa side, and ``remove_duplicates()`` on the PyQt side, are
 respectively called to perform the thing.
@@ -42,11 +42,11 @@ respectively called to perform the thing.
 Jobs
 ----
 
-A lot of operations in dupeGuru take a significant amount of time. This is why there's a generalized
-threaded job mechanism built-in :class:`~core.app.DupeGuru`. First, :class:`~core.app.DupeGuru` has
+A lot of operations in DupeCleaner take a significant amount of time. This is why there's a generalized
+threaded job mechanism built-in :class:`~core.app.DupeCleaner`. First, :class:`~core.app.DupeCleaner` has
 a ``progress`` member which is an instance of
 :class:`~hscommon.jobprogress.performer.ThreadedJobPerformer`. It lets the GUI code know of the progress
-of the current threaded job. When :class:`~core.app.DupeGuru` needs to start a job, it calls
+of the current threaded job. When :class:`~core.app.DupeCleaner` needs to start a job, it calls
 ``_start_job()`` and the platform specific subclass deals with the details of starting the job.
 
 Core principles
@@ -60,7 +60,7 @@ return a list of ``(firstfile, secondfile, match_percentage)`` matches. Then, th
 together).
 
 When a scan is over, the final result (the list of groups from :func:`.get_groups`) is placed into
-:attr:`core.app.DupeGuru.results`, which is a :class:`core.results.Results` instance. The
+:attr:`core.app.DupeCleaner.results`, which is a :class:`core.results.Results` instance. The
 :class:`~.Results` instance is where all the dupe marking, sorting, removing, power marking, etc.
 takes place.
 

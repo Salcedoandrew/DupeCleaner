@@ -64,7 +64,7 @@ def build_one_help(language):
     print(f"Generating Help in {language}")
     current_path = Path(".").absolute()
     changelog_path = current_path.joinpath("help", "changelog")
-    tixurl = "https://github.com/arsenetar/dupeguru/issues/{}"
+    tixurl = "https://github.com/Salcedoandrew/DupeCleaner/issues/{}"
     changelogtmpl = current_path.joinpath("help", "changelog.tmpl")
     conftmpl = current_path.joinpath("help", "conf.tmpl")
     help_basepath = current_path.joinpath("help", language)
@@ -122,9 +122,9 @@ def build_pe_modules():
 
 
 def build_normal():
-    print("Building dupeGuru with UI qt")
+    print("Building DupeCleaner with UI qt")
     add_to_pythonpath(".")
-    print("Building dupeGuru")
+    print("Building DupeCleaner")
     build_pe_modules()
     print("Building localizations")
     build_localizations()

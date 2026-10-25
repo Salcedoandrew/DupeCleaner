@@ -1,7 +1,7 @@
 Re-Prioritizing duplicates
 ==========================
 
-dupeGuru tries to automatically determine which duplicate should go in each group's reference
+DupeCleaner tries to automatically determine which duplicate should go in each group's reference
 position, but sometimes it gets it wrong. In many cases, clever dupe sorting with "Delta Values"
 and "Dupes Only" options in addition to the "Make Selected into Reference" action does the trick,
 but sometimes, a more powerful option is needed. This is where the Re-Prioritization dialog comes

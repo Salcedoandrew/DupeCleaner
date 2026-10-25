@@ -1,24 +1,24 @@
-dupeGuru help
+DupeCleaner help
 =============
 
 This help document is also available in these languages:
 
-* `French <http://dupeguru.voltaicideas.net/help/fr>`__
-* `German <http://dupeguru.voltaicideas.net/help/de>`__
-* `Armenian <http://dupeguru.voltaicideas.net/help/hy>`__
-* `Russian <http://dupeguru.voltaicideas.net/help/ru>`__
-* `Ukrainian <http://dupeguru.voltaicideas.net/help/uk>`__
+* `French <http://github.com/Salcedoandrew/DupeCleaner/help/fr>`__
+* `German <http://github.com/Salcedoandrew/DupeCleaner/help/de>`__
+* `Armenian <http://github.com/Salcedoandrew/DupeCleaner/help/hy>`__
+* `Russian <http://github.com/Salcedoandrew/DupeCleaner/help/ru>`__
+* `Ukrainian <http://github.com/Salcedoandrew/DupeCleaner/help/uk>`__
 
-dupeGuru is a tool to find duplicate files on your computer. It has three
+DupeCleaner is a tool to find duplicate files on your computer. It has three
 modes, Standard, Music and Picture, with each mode having its own scan types
 and little features.
 
-Although dupeGuru can easily be used without documentation, reading this file
+Although DupeCleaner can easily be used without documentation, reading this file
 will help you to master it. If you are looking for guidance for your first
 duplicate scan, you can take a look at the :doc:`Quick Start <quick_start>`
 section.
 
-It is a good idea to keep dupeGuru updated. You can download the latest version on its `homepage`_.
+It is a good idea to keep DupeCleaner updated. You can download the latest version on its `homepage`_.
 
 Contents:
 
@@ -42,4 +42,4 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`search`
 
-.. _homepage: https://dupeguru.voltaicideas.net/
+.. _homepage: https://github.com/Salcedoandrew/DupeCleaner/

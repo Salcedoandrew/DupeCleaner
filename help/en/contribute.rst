@@ -1,18 +1,18 @@
-Contribute to dupeGuru
+Contribute to DupeCleaner
 ======================
 
-dupeGuru was started as shareware (thus proprietary) so it doesn't have a legacy of
+DupeCleaner was started as shareware (thus proprietary) so it doesn't have a legacy of
 community-building. It's `been open source`_ for a while now and, although I've ("I" being Virgil
-Dupras, author of the software) always wanted to have people other than me working on dupeGuru, I've
+Dupras, author of the software) always wanted to have people other than me working on DupeCleaner, I've
 failed at attracting them.
 
-Since the end of 2013, I've been putting a lot of efforts into dupeGuru's
+Since the end of 2013, I've been putting a lot of efforts into DupeCleaner's
 :doc:`developer documentation </developer/index>` and I'm more serious about my commitment to create
 a community around this project.
 
-So, whatever your skills, if you're interested in contributing to dupeGuru, please do so. Normally,
+So, whatever your skills, if you're interested in contributing to DupeCleaner, please do so. Normally,
 this documentation should be enough to get you started, but if it isn't, then **please**,
-open a discussion at https://github.com/arsenetar/dupeguru/discussions.  If there's any situation where you'd
+open a discussion at https://github.com/Salcedoandrew/DupeCleaner/discussions.  If there's any situation where you'd
 wish to contribute but some doubt you're having prevent you from going forward, please contact me.
 I'd much prefer to spend the time figuring out with you whether (and how) you can contribute than
 taking the chance of missing that opportunity.
@@ -24,7 +24,7 @@ Development process
 * `Issue Tracker`_
 * `Issue labels meaning`_
 
-dupeGuru's source code is on GitHub and thus managed in a Git repository. At all times, you should
+DupeCleaner's source code is on GitHub and thus managed in a Git repository. At all times, you should
 be able to build from source a fresh checkout of the ``master`` branch using instructions from the
 ``README.md`` file at the root of this project. If you can't, it's a bug. Please report it.
 
@@ -36,12 +36,12 @@ When implementing a big feature, it's possible that it gets its own branch until
 it's stable enough to merge into ``master``.
 
 Every release is tagged, the tag name containing the edition (for old versions) and its version.
-For example, release 6.6.0 of dupeGuru ME is tagged ``me6.6.0``. Newer releases are tagged only
+For example, release 6.6.0 of DupeCleaner ME is tagged ``me6.6.0``. Newer releases are tagged only
 with the version number (because editions don't exist anymore), for example ``4.0.0``.
 
 Once you're past building the software, the :doc:`developer documentation </developer/index>` should
 be enough to get you started with actual development. Then again, proper documentation is a very
-difficult task and, in the case of dupeGuru, this documentation was practically nonexistent until
+difficult task and, in the case of DupeCleaner, this documentation was practically nonexistent until
 late in the project, so it's still lacking.
 
 However, I'm committed to fix this situation, so if you're in a situation where you lack proper
@@ -64,7 +64,7 @@ and help them figure out a clear roadmap for the project.
 So, even if you're not a developer, you can always open a GitHub account and create/comment issues.
 Your contribution will be much appreciated.
 
-**Documentation**. This is a bit trickier because dupeGuru's documentation is written with a rather
+**Documentation**. This is a bit trickier because DupeCleaner's documentation is written with a rather
 complex markup language, `Sphinx`_ (based on `reST`_). To properly work within the documentation,
 you have to know that language. I don't think that learning this language is outside the realm of
 possibility for a non-developer, but it might be a daunting task.
@@ -79,10 +79,10 @@ doing the formatting myself. But in that case, it's better to contact me first t
 agree on what should be added to the documentation.
 
 **Translation**. Creating or improving an existing translation is a very good way to contribute to
-dupeGuru. For more information about how to do that, you can refer to the `translator guide`_.
+DupeCleaner. For more information about how to do that, you can refer to the `translator guide`_.
 
 .. _been open source: https://www.hardcoded.net/articles/free-as-in-speech-fair-as-in-trade
-.. _Source code repository: https://github.com/arsenetar/dupeguru
+.. _Source code repository: https://github.com/Salcedoandrew/DupeCleaner
 .. _Issue Tracker: https://github.com/arsenetar/issues
 .. _Issue labels meaning: https://github.com/arsenetar/wiki/issue-labels
 .. _Sphinx: http://sphinx-doc.org/

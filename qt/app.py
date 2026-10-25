@@ -19,7 +19,7 @@ from qt.recent import Recent
 from qt.util import create_actions
 from qt.progress_window import ProgressWindow
 
-from core.app import AppMode, DupeGuru as DupeGuruModel
+from core.app import AppMode, DupeCleaner as DupeCleanerModel
 import core.pe.photo
 from qt import platform
 from qt.preferences import Preferences
@@ -41,9 +41,9 @@ from qt.tabbed_window import TabBarWindow, TabWindow
 tr = trget("ui")
 
 
-class DupeGuru(QObject):
+class DupeCleaner(QObject):
     LOGO_NAME = "logo_se"
-    NAME = "dupeGuru"
+    NAME = "DupeCleaner"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -52,7 +52,7 @@ class DupeGuru(QObject):
         # Enable tabs instead of separate floating windows for each dialog
         # Could be passed as an argument to this class if we wanted
         self.use_tabs = True
-        self.model = DupeGuruModel(view=self, portable=self.prefs.portable)
+        self.model = DupeCleanerModel(view=self, portable=self.prefs.portable)
         self._setup()
 
     # --- Private
@@ -142,8 +142,8 @@ class DupeGuru(QObject):
                 tr("Exclusion Filters"),
                 self.excludeListTriggered,
             ),
-            ("actionShowHelp", "F1", "", tr("dupeGuru Help"), self.showHelpTriggered),
-            ("actionAbout", "", "", tr("About dupeGuru"), self.showAboutBoxTriggered),
+            ("actionShowHelp", "F1", "", tr("DupeCleaner Help"), self.showHelpTriggered),
+            ("actionAbout", "", "", tr("About DupeCleaner"), self.showAboutBoxTriggered),
             (
                 "actionOpenDebugLog",
                 "",
@@ -319,10 +319,11 @@ class DupeGuru(QObject):
                 "Wrong Locale",
                 msg,
             )
-        # Load results on open if passed a .dupeguru file
+        # Load results on open if passed a results file (.dupecleaner, or
+        # .dupeguru from the version this was forked from)
         if len(sys.argv) > 1:
             results = sys.argv[1]
-            if results.endswith(".dupeguru"):
+            if results.endswith((".dupecleaner", ".dupeguru")):
                 self.model.load_from(results)
                 self.recentResults.insertItem(results)
 
@@ -390,7 +391,7 @@ class DupeGuru(QObject):
         if op.exists(help_path):
             url = QUrl.fromLocalFile(help_path)
         else:
-            url = QUrl("https://dupeguru.voltaicideas.net/help/en/")
+            url = QUrl("https://github.com/Salcedoandrew/DupeCleaner/tree/main/help/en/")
         QDesktopServices.openUrl(url)
 
     def handleSIGTERM(self):

@@ -1,5 +1,5 @@
 ;==============================================================================
-; dupeGuru Installer Script for Windows via NSIS
+; DupeCleaner Installer Script for Windows via NSIS
 ;
 ; When calling makensis use the following:
 ; makensis /DVERSIONMAJOR=x /DVERSIONMINOR=x /DVERSIONPATCH=x /DBITS=x \
@@ -44,15 +44,15 @@ SetCompressor /SOLID lzma
 !verbose pop
 
 ; Application Specific Defines
-!define APPNAME "dupeGuru"
-!define COMPANYNAME "Hardcoded Software"
-!define DESCRIPTION "dupeGuru is a tool to find duplicate files on your computer."
+!define APPNAME "DupeCleaner"
+!define COMPANYNAME "Salcedo"
+!define DESCRIPTION "DupeCleaner is a tool to find duplicate files on your computer."
 !define APPLICENSE "LICENSE"           ; License is not in build directory
 !define APPICON "images\dgse_logo.ico" ; nor is the icon
 !define DISTDIR "dist"
-!define HELPURL "https://github.com/arsenetar/dupeguru/issues"
-!define UPDATEURL "https://dupeguru.voltaicideas.net/"
-!define ABOUTURL "https://dupeguru.voltaicideas.net/"
+!define HELPURL "https://github.com/Salcedoandrew/DupeCleaner/issues"
+!define UPDATEURL "https://github.com/Salcedoandrew/DupeCleaner/"
+!define ABOUTURL "https://github.com/Salcedoandrew/DupeCleaner/"
 
 ; Static Defines
 !define UNINSTALLREGBASE "Software\Microsoft\Windows\CurrentVersion\Uninstall"
@@ -187,12 +187,12 @@ Section "!Application" AppSec
   Pop $R0
 
   ; Set file association
-  ReadRegStr $1 HKCR ".dupeguru" ""
+  ReadRegStr $1 HKCR ".dupecleaner" ""
   StrCmp $1 "" NoBackup  ; is it empty
   StrCmp $1 "${APPNAME}.File" NoBackup  ; is it our own
-  WriteRegStr HKCR ".dupeguru" "backup_val" "$1"  ; backup current value
+  WriteRegStr HKCR ".dupecleaner" "backup_val" "$1"  ; backup current value
 NoBackup:
-  WriteRegStr HKCR ".dupeguru" "" "${APPNAME}.File"  ; set our file association
+  WriteRegStr HKCR ".dupecleaner" "" "${APPNAME}.File"  ; set our file association
 
   ReadRegStr $0 HKCR "${APPNAME}.File" ""
   StrCmp $0 "" 0 Skip
@@ -257,16 +257,16 @@ Section "Uninstall"
   ; Remove Install Folder if empty
   RMDir "$INSTDIR"
 
- ReadRegStr $1 HKCR ".dupeguru" ""
+ ReadRegStr $1 HKCR ".dupecleaner" ""
   StrCmp $1 "${APPNAME}.File" 0 NotOwn ; only do this if we own it
-  ReadRegStr $1 HKCR ".dupeguru" "backup_val"
+  ReadRegStr $1 HKCR ".dupecleaner" "backup_val"
   StrCmp $1 "" 0 Restore ; if backup="" then delete the whole key
-  DeleteRegKey HKCR ".dupeGuru"
+  DeleteRegKey HKCR ".DupeCleaner"
   Goto NotOwn
 
 Restore:
-  WriteRegStr HKCR ".dupeguru" "" $1
-  DeleteRegValue HKCR ".dupeguru" "backup_val"
+  WriteRegStr HKCR ".dupecleaner" "" $1
+  DeleteRegValue HKCR ".dupecleaner" "backup_val"
 NotOwn:
   DeleteRegKey HKCR "${APPNAME}.File" ;Delete key with association name settings
 

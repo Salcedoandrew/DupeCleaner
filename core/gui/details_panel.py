@@ -7,13 +7,13 @@
 # http://www.gnu.org/licenses/gpl-3.0.html
 
 from hscommon.gui.base import GUIObject
-from core.gui.base import DupeGuruGUIObject
+from core.gui.base import DupeCleanerGUIObject
 
 
-class DetailsPanel(GUIObject, DupeGuruGUIObject):
+class DetailsPanel(GUIObject, DupeCleanerGUIObject):
     def __init__(self, app):
         GUIObject.__init__(self, multibind=True)
-        DupeGuruGUIObject.__init__(self, app)
+        DupeCleanerGUIObject.__init__(self, app)
         self._table = []
 
     def _view_updated(self):

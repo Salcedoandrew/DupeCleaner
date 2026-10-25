@@ -48,8 +48,8 @@ def setup_signals():
 
 def main():
     app = QApplication(sys.argv)
-    app.setDesktopFileName("dupeguru")
-    QCoreApplication.setOrganizationName("Hardcoded Software")
+    app.setDesktopFileName("dupecleaner")
+    QCoreApplication.setOrganizationName("Salcedo")
     QCoreApplication.setApplicationName(__appname__)
     QCoreApplication.setApplicationVersion(__version__)
     setup_qt_logging()
@@ -69,12 +69,12 @@ def main():
     timer.timeout.connect(lambda: None)
     # Many strings are translated at import time, so this is why we only import after the translator
     # has been installed
-    from qt.app import DupeGuru
+    from qt.app import DupeCleaner
 
-    app.setWindowIcon(QIcon(QPixmap(f":/{DupeGuru.LOGO_NAME}")))
+    app.setWindowIcon(QIcon(QPixmap(f":/{DupeCleaner.LOGO_NAME}")))
     global dgapp
-    dgapp = DupeGuru()
-    install_excepthook("https://github.com/arsenetar/dupeguru/issues")
+    dgapp = DupeCleaner()
+    install_excepthook("https://github.com/Salcedoandrew/DupeCleaner/issues")
     result = app.exec()
     # I was getting weird crashes when quitting under Windows, and manually deleting main app
     # references with gc.collect() in between seems to fix the problem.

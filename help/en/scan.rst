@@ -3,7 +3,7 @@ The scanning process
 
 .. contents::
 
-dupeGuru has 3 basic ways of scanning: :ref:`worded-scan` and :ref:`contents-scan` and
+DupeCleaner has 3 basic ways of scanning: :ref:`worded-scan` and :ref:`contents-scan` and
 :ref:`picture blocks <picture-blocks-scan>`. The first two types are for the Standard and Music
 modes, the last is for the Picture mode. The scanning process is configured through the
 :doc:`Preference pane <preferences>`.
@@ -27,7 +27,7 @@ by nothing) and all words lowercased. For example, the string "This guy's song(r
 Once this is done, the scanning dance begins. Finding duplicates is only a matter of finding how
 many words in common two given strings have. If the :ref:`filter hardness <filter-hardness>` is,
 for example, ``80``, it means that 80% of the words of two strings must match. To determine the
-matching percentage, dupeGuru first counts the total number of words in **both** strings, then count
+matching percentage, DupeCleaner first counts the total number of words in **both** strings, then count
 the number of words matching (every word matching count as 2), and then divide the number of words
 matching by the total number of words. If the result is higher or equal than the filter hardness,
 we have a duplicate match. For example, "a b c d" and "c d e" have a matching percentage of 57
@@ -116,7 +116,7 @@ instead of trying to find duplicate files, it tries to find duplicate folders.
 A folder is duplicate to another if all files it contains have the same
 contents as the other folder's file.
 
-This scan is, of course, recursive and subfolders are checked. dupeGuru keeps only the biggest
+This scan is, of course, recursive and subfolders are checked. DupeCleaner keeps only the biggest
 fishes. Therefore, if two folders that are considered as matching contain subfolders, these
 subfolders will not be included in the final results.
 
@@ -127,7 +127,7 @@ With this mode, we end up with folders as results instead of files.
 Picture blocks
 --------------
 
-dupeGuru Picture mode stands apart of its two friends. Its scan types are completely different.
+DupeCleaner Picture mode stands apart of its two friends. Its scan types are completely different.
 The first one is its "Contents" scan, which is a bit too generic, hence the name we use here,
 "Picture blocks".
 
@@ -153,7 +153,7 @@ to every other, making the algorithm quadratic (if ``N`` is the number of pictur
 number of comparisons to perform is ``N*N``).
 
 This algorithm is very naive, but in the field, it works rather well. If you master a better
-algorithm and want to improve dupeGuru, by all means, let me know!
+algorithm and want to improve DupeCleaner, by all means, let me know!
 
 EXIF Timestamp
 --------------

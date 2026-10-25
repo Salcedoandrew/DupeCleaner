@@ -9,7 +9,7 @@
 from hscommon.gui.tree import Tree, Node
 
 from core.directories import DirectoryState
-from core.gui.base import DupeGuruGUIObject
+from core.gui.base import DupeCleanerGUIObject
 
 STATE_ORDER = [DirectoryState.NORMAL, DirectoryState.REFERENCE, DirectoryState.EXCLUDED]
 
@@ -55,14 +55,14 @@ class DirectoryNode(Node):
         self._tree.update_all_states()
 
 
-class DirectoryTree(Tree, DupeGuruGUIObject):
+class DirectoryTree(Tree, DupeCleanerGUIObject):
     # --- model -> view calls:
     # refresh()
     # refresh_states() # when only states label need to be refreshed
     #
     def __init__(self, app):
         Tree.__init__(self)
-        DupeGuruGUIObject.__init__(self, app)
+        DupeCleanerGUIObject.__init__(self, app)
 
     def _view_updated(self):
         self._refresh()

@@ -31,7 +31,7 @@ Preferences
     you don't check it, well, they aren't!
 
 **Ignore duplicates hardlinking to the same file:**
-    If this option is enabled, dupeGuru will verify duplicates to see if they refer to the same
+    If this option is enabled, DupeCleaner will verify duplicates to see if they refer to the same
     `inode`_. If they do, they will not be considered duplicates. (Only for OS X and Linux)
 
 **Use regular expressions when filtering:**
@@ -60,7 +60,7 @@ Preferences
   destination ``/Users/foobar/MyDestination``, the final destination for the file will be
   ``/Users/foobar/MyDestination/Users/foobar/SomeFolder/SubFolder``.
 
-In all cases, dupeGuru nicely handles naming conflicts by prepending a number to the destination
+In all cases, DupeCleaner nicely handles naming conflicts by prepending a number to the destination
 filename if the filename already exists in the destination.
 
 **Custom Command:**

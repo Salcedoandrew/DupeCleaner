@@ -1,21 +1,21 @@
-# dupeGuru
+# DupeCleaner
 
-[dupeGuru][dupeguru] is a cross-platform (Linux, OS X, Windows) GUI tool to find duplicate files in
+[DupeCleaner][dupecleaner] is a cross-platform (Linux, OS X, Windows) GUI tool to find duplicate files in
 a system. It is written mostly in Python 3 and uses [qt](https://www.qt.io/) for the UI.
 
 ## Current status
 Still looking for additional help especially with regards to:
 * OSX maintenance: reproducing bugs, packaging verification.
 * Linux maintenance: reproducing bugs, maintaining PPA repository, Debian package, rpm package.
-* Translations: updating missing strings, transifex project at https://www.transifex.com/voltaicideas/dupeguru-1
+* Translations: strings live in `locale/`; new translations are welcome via pull request.
 * Documentation: keeping it up-to-date.
 
 ## Contents of this folder
 
-This folder contains the source for dupeGuru. Its documentation is in `help`, but is also
+This folder contains the source for DupeCleaner. Its documentation is in `help`, but is also
 [available online][documentation] in its built form. Here's how this source tree is organized:
 
-* core: Contains the core logic code for dupeGuru. It's Python code.
+* core: Contains the core logic code for DupeCleaner. It's Python code.
 * qt: UI code for the Qt toolkit. It's written in Python and uses PyQt.
 * images: Images used by the different UI codebases.
 * pkg: Skeleton files required to create different packages
@@ -23,7 +23,7 @@ This folder contains the source for dupeGuru. Its documentation is in `help`, bu
 * locale: .po files for localization.
 * hscommon: A collection of helpers used across HS applications.
 
-## How to build dupeGuru from source
+## How to build DupeCleaner from source
 
 ### Windows & macOS specific additional instructions
 For windows instructions see the [Windows Instructions](Windows.md).
@@ -49,13 +49,13 @@ To create packages the following are also needed:
 * debhelper
 
 ### Building with Make
-dupeGuru comes with a makefile that can be used to build and run:
+DupeCleaner comes with a makefile that can be used to build and run:
 
     $ make && make run
 
 ### Building without Make
 
-    $ cd <dupeGuru directory>
+    $ cd <DupeCleaner directory>
     $ python3 -m venv --system-site-packages ./env
     $ source ./env/bin/activate
     $ pip install -r requirements.txt
@@ -66,7 +66,7 @@ dupeGuru comes with a makefile that can be used to build and run:
 To generate packages the extra requirements in requirements-extra.txt must be installed, the
 steps are as follows:
 
-    $ cd <dupeGuru directory>
+    $ cd <DupeCleaner directory>
     $ python3 -m venv --system-site-packages ./env
     $ source ./env/bin/activate
     $ pip install -r requirements.txt -r requirements-extra.txt
@@ -89,9 +89,9 @@ You can also run automated tests without Tox. Extra requirements for running tes
 `requirements-extra.txt`. So, you can do `pip install -r requirements-extra.txt` inside your
 virtualenv and then `py.test core hscommon`
 
-[dupeguru]: https://dupeguru.voltaicideas.net/
+[dupecleaner]: https://github.com/Salcedoandrew/DupeCleaner/
 [cross-toolkit]: http://www.hardcoded.net/articles/cross-toolkit-software
-[documentation]: http://dupeguru.voltaicideas.net/help/en/
+[documentation]: https://github.com/Salcedoandrew/DupeCleaner/tree/main/help/en/
 [python]: http://www.python.org/
 [pyqt]: http://www.riverbankcomputing.com
 [tox]: https://tox.readthedocs.org/en/latest/

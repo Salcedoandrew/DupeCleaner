@@ -12,12 +12,12 @@ from hscommon.jobprogress.job import nulljob, JobCancelled
 
 from core import engine, prioritize
 from core.engine import getwords
-from core.app import DupeGuru as DupeGuruBase
+from core.app import DupeCleaner as DupeCleanerBase
 from core.gui.result_table import ResultTable as ResultTableBase
 from core.gui.prioritize_dialog import PrioritizeDialog
 
 
-class DupeGuruView:
+class DupeCleanerView:
     JOB = nulljob
 
     def __init__(self):
@@ -58,12 +58,12 @@ class ResultTable(ResultTableBase):
     }
 
 
-class DupeGuru(DupeGuruBase):
-    NAME = "dupeGuru"
+class DupeCleaner(DupeCleanerBase):
+    NAME = "DupeCleaner"
     METADATA_TO_READ = ["size"]
 
     def __init__(self):
-        DupeGuruBase.__init__(self, DupeGuruView())
+        DupeCleanerBase.__init__(self, DupeCleanerView())
         self.appdata = "/tmp"
         self._recreate_result_table()
 
@@ -155,7 +155,7 @@ class TestApp(TestAppBase):
             return gui
 
         TestAppBase.__init__(self)
-        self.app = DupeGuru()
+        self.app = DupeCleaner()
         self.default_parent = self.app
         self.dtree = link_gui(self.app.directory_tree)
         self.dpanel = link_gui(self.app.details_panel)

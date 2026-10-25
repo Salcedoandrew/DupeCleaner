@@ -7,7 +7,7 @@
 # http://www.gnu.org/licenses/gpl-3.0.html
 
 # This is a fork from hsfs. The reason for this fork is that hsfs has been designed for musicGuru
-# and was re-used for dupeGuru. The problem is that hsfs is way over-engineered for dupeGuru,
+# and was re-used for DupeCleaner. The problem is that hsfs is way over-engineered for DupeCleaner,
 # resulting needless complexity and memory usage. It's been a while since I wanted to do that fork,
 # and I'm doing it now.
 

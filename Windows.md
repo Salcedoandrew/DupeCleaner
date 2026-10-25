@@ -1,4 +1,4 @@
-## How to build dupeGuru for Windows
+## How to build DupeCleaner for Windows
 
 ### Prerequisites
 
@@ -18,7 +18,7 @@ More details on setting up python for compiling packages on windows can be found
 ### With build.py (preferred)
 To build with a different python version 3.7 vs 3.8 or 32 bit vs 64 bit specify that version instead of -3.8 to the `py` command below.  If you want to build additional versions while keeping all virtual environments setup use a different location for each virtual environment.
 
-    $ cd <dupeGuru directory>
+    $ cd <DupeCleaner directory>
     $ py -3.8 -m venv .\env
     $ .\env\Scripts\activate
     $ pip install -r requirements.txt
@@ -26,14 +26,14 @@ To build with a different python version 3.7 vs 3.8 or 32 bit vs 64 bit specify 
     $ python run.py
 
 ### With makefile
-It is possible to build dupeGuru with the makefile on windows using a compatable POSIX environment.  The following steps have been tested using [msys2][msys2]. Before running make:
+It is possible to build DupeCleaner with the makefile on windows using a compatable POSIX environment.  The following steps have been tested using [msys2][msys2]. Before running make:
 1. Install msys2 or other POSIX environment
 2. Install PyQt5 globally via pip
 3. Use the respective console for msys2 it is `msys2 msys`
 
 Then the following execution of the makefile should work.  Pass the correct value for PYTHON to the makefile if not on the path as python3.
 
-    $ cd <dupeGuru directory>
+    $ cd <DupeCleaner directory>
     $ make PYTHON='py -3.8'
     $ make run
 

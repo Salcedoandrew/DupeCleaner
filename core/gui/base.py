@@ -9,7 +9,7 @@
 from hscommon.notify import Listener
 
 
-class DupeGuruGUIObject(Listener):
+class DupeCleanerGUIObject(Listener):
     def __init__(self, app):
         Listener.__init__(self, app)
         self.app = app

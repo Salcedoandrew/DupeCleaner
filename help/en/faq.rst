@@ -3,10 +3,10 @@ Frequently Asked Questions
 
 .. contents::
 
-What is dupeGuru?
+What is DupeCleaner?
 -----------------
 
-dupeGuru is a tool to find duplicate files on your computer. It has three operational modes:
+DupeCleaner is a tool to find duplicate files on your computer. It has three operational modes:
 Standard, Music and Picture. Each mode has its own specialized preferences.
 
 Each mode has multiple scan types, such as filename, contents, tags. Some scan types feature
@@ -19,18 +19,18 @@ What makes it special?
 It's mostly about customizability. There's a lot of scanning options that allow you to get the
 type of results you're really looking for.
 
-How safe is it to use dupeGuru?
+How safe is it to use DupeCleaner?
 -------------------------------
 
-Very safe. dupeGuru has been designed to make sure you don't delete files you didn't mean to delete.
+Very safe. DupeCleaner has been designed to make sure you don't delete files you didn't mean to delete.
 First, there is the reference folder system that lets you define folders where you absolutely
-**don't** want dupeGuru to let you delete files there, and then there is the group reference system
+**don't** want DupeCleaner to let you delete files there, and then there is the group reference system
 that makes sure that you will **always** keep at least one member of the duplicate group.
 
 How can I report a bug a suggest a feature?
 -------------------------------------------
 
-dupeGuru is hosted on `GitHub`_ and it's also where issues are tracked. The best way to report a
+DupeCleaner is hosted on `GitHub`_ and it's also where issues are tracked. The best way to report a
 bug or suggest a feature is to sign up on GitHub and `open an issue`_.
 
 The mark box of a file I want to delete is disabled. What must I do?
@@ -45,7 +45,7 @@ duplicate file in the group that you want to promote to reference, and click on
 I have a folder from which I really don't want to delete files.
 ---------------------------------------------------------------
 
-If you want to be sure that dupeGuru will never delete file from a particular folder, make sure to
+If you want to be sure that DupeCleaner will never delete file from a particular folder, make sure to
 set its state to **Reference** at :doc:`folders`.
 
 What is this '(X discarded)' notice in the status bar?
@@ -53,13 +53,13 @@ What is this '(X discarded)' notice in the status bar?
 
 In some cases, some matches are not included in the final results for security reasons. Let me use
 an example. We have 3 file: A, B and C. We scan them using a low filter hardness. The scanner
-determines that A matches with B, A matches with C, but B does **not** match with C. Here, dupeGuru
+determines that A matches with B, A matches with C, but B does **not** match with C. Here, DupeCleaner
 has kind of a problem. It cannot create a duplicate group with A, B and C in it because not all
 files in the group would match together. It could create 2 groups: one A-B group and then one A-C
 group, but it will not, for security reasons. Lets think about it: If B doesn't match with C, it
 probably means that either B, C or both are not actually duplicates. If there would be 2 groups (A-B
 and A-C), you would end up delete both B and C. And if one of them is not a duplicate, that is
-really not what you want to do, right? So what dupeGuru does in a case like this is to discard the
+really not what you want to do, right? So what DupeCleaner does in a case like this is to discard the
 A-C match (and adds a notice in the status bar). Thus, if you delete B and re-run a scan, you will
 have a A-C match in your next results.
 
@@ -140,13 +140,13 @@ This slider is only relevant for scan types that support "fuzziness". Many scan 
 On some OS, the fact that it's disabled is harder to see than on others, but if you can't move the
 slider, it means that this preference is irrelevant in your current scan type.
 
-I've tried to send my duplicates to Trash, but dupeGuru is telling me it can't do it. Why? What can I do?
+I've tried to send my duplicates to Trash, but DupeCleaner is telling me it can't do it. Why? What can I do?
 ---------------------------------------------------------------------------------------------------------
 
-Most of the time, the reason why dupeGuru can't send files to Trash is because of file permissions.
+Most of the time, the reason why DupeCleaner can't send files to Trash is because of file permissions.
 You need *write* permissions on files you want to send to Trash.
 
-If dupeGuru still gives you troubles after fixing your permissions, try enabling the "Directly
+If DupeCleaner still gives you troubles after fixing your permissions, try enabling the "Directly
 delete files" option that is offered to you when you activate Send to Trash. This will not send
 files to the Trash, but delete them immediately. In some cases, for example on network storage
 (NAS), this has been known to work when normal deletion didn't.
@@ -158,23 +158,23 @@ This scanning method is very different from methods. It can detect duplicate pho
 are not exactly the same. This very cool capability has a cost: time. Every picture has to be
 individually and fuzzily matched to all others, and this takes a lot of CPU power.
 
-If all you need to find is exact duplicates, just use the standard mode of dupeGuru with the
+If all you need to find is exact duplicates, just use the standard mode of DupeCleaner with the
 Contents scan method. If your photos have EXIF tags, you can also try the "EXIF" scan method which
 is much faster.
 
 Where are user files located?
 -----------------------------
 
-For some reason, you'd like to remove or edit dupeGuru's user files (debug logs, caches, etc.).
+For some reason, you'd like to remove or edit DupeCleaner's user files (debug logs, caches, etc.).
 Where they're located depends on your platform:
 
-* Linux: ``~/.local/share/data/Hardcoded Software/dupeGuru``
-* Mac OS X: ``~/Library/Application Support/dupeGuru``
+* Linux: ``~/.local/share/data/Salcedo/DupeCleaner``
+* Mac OS X: ``~/Library/Application Support/DupeCleaner``
 
 Preferences are stored elsewhere:
 
-* Linux: ``~/.config/Hardcoded Software/dupeGuru.conf``
-* Mac OS X: In the built-in ``defaults`` system, as ``com.hardcoded-software.dupeguru``
+* Linux: ``~/.config/Salcedo/DupeCleaner.conf``
+* Mac OS X: In the built-in ``defaults`` system, as ``com.salcedo.dupecleaner``
 
-.. _GitHub: https://github.com/arsenetar/dupeguru
-.. _open an issue: https://github.com/arsenetar/dupeguru/wiki/issue-labels
+.. _GitHub: https://github.com/Salcedoandrew/DupeCleaner
+.. _open an issue: https://github.com/Salcedoandrew/DupeCleaner/wiki/issue-labels

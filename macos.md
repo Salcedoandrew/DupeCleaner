@@ -1,7 +1,7 @@
-## How to build dupeGuru for macos
+## How to build DupeCleaner for macos
 These instructions are for the Qt version of the UI on macOS.
 
-*Note: The Cocoa UI of dupeGuru is hosted in a separate repo: https://github.com/arsenetar/dupeguru-cocoa and is no longer "supported".*
+*Note: The Cocoa UI of DupeCleaner is hosted in a separate repo: https://github.com/Salcedoandrew/DupeCleaner-cocoa and is no longer "supported".*
 ### Prerequisites
 
 - [Python 3.7+][python]
@@ -31,7 +31,7 @@ build pyqt5 from source then the first line below is needed, else it may be omit
 for an arm mac.)
 
     $ export PATH="/opt/homebrew/opt/qt/bin:$PATH"
-    $ cd <dupeGuru directory>
+    $ cd <DupeCleaner directory>
     $ python3 -m venv ./env
     $ source ./env/bin/activate
     $ pip install -r requirements.txt
@@ -44,7 +44,7 @@ Run the following in the respective virtual environment.
 
     $ python package.py
 
-This will produce a dupeGuru.app in the dist folder.
+This will produce a DupeCleaner.app in the dist folder.
 
 ### Running tests
 The complete test suite can be run with tox just like on linux. NOTE: The extra requirements need to

@@ -1,0 +1,7 @@
+{
+	"pkgname": "dupecleaner",
+	"longname": "DupeCleaner",
+	"execname": "dupecleaner",
+	"arch": "any",
+	"iconpath": "dupecleaner"
+}

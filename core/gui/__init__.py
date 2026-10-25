@@ -1,8 +1,8 @@
 """
-Meta GUI elements in dupeGuru
+Meta GUI elements in DupeCleaner
 -----------------------------
 
-dupeGuru is designed with a `cross-toolkit`_ approach in mind. It means that its core code
+DupeCleaner is designed with a `cross-toolkit`_ approach in mind. It means that its core code
 (which doesn't depend on any GUI toolkit) has elements which preformat core information in a way
 that makes it easy for a UI layer to consume.
 

@@ -385,7 +385,7 @@ most users should not have to modify these."
             QMessageBox.information(
                 self,
                 "",
-                tr("dupeGuru has to restart for language changes to take effect."),
+                tr("DupeCleaner has to restart for language changes to take effect."),
             )
         self.app.prefs.language = lang_code
         self._save(prefs, ischecked)

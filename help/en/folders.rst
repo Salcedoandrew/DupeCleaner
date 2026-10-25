@@ -1,8 +1,8 @@
 Folder Selection
 ================
 
-The first window you see when you launch dupeGuru is the folder selection window. This windows
-contains the basic input dupeGuru needs to start a scan:
+The first window you see when you launch DupeCleaner is the folder selection window. This windows
+contains the basic input DupeCleaner needs to start a scan:
 
 * An Application Mode selection
 * A Scan Type selection
@@ -11,7 +11,7 @@ contains the basic input dupeGuru needs to start a scan:
 Application Mode
 ----------------
 
-dupeGuru had three main modes: Standard, Music and Picture.
+DupeCleaner had three main modes: Standard, Music and Picture.
 
 Standard is for any type of files. This makes this mode the most polyvalent, but it lacks
 specialized features other modes have.
