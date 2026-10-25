@@ -76,6 +76,14 @@ def remove_dupe_paths(files):
     return result
 
 
+# Which file to keep (the "reference") in a dupe group. Mirrors Cisdem's automatic
+# selection rules: keep the largest file (default), the newest, or the oldest.
+KEEP_RULE_LARGEST = "largest"
+KEEP_RULE_NEWEST = "newest"
+KEEP_RULE_OLDEST = "oldest"
+KEEP_RULES = (KEEP_RULE_LARGEST, KEEP_RULE_NEWEST, KEEP_RULE_OLDEST)
+
+
 class Scanner:
     def __init__(self):
         self.discarded_file_count = 0
@@ -121,16 +129,25 @@ class Scanner:
             return engine.getmatches(files, j=j, **kw)
 
     @staticmethod
-    def _key_func(dupe):
+    def _default_key_func(dupe):
+        # The default "keep" rule: the biggest file wins. Music mode overrides this
+        # (bitrate first), but the keep_rule handling in _key_func applies to all modes.
         return -dupe.size
+
+    def _key_func(self, dupe):
+        if self.keep_rule == KEEP_RULE_NEWEST:
+            return -dupe.mtime
+        if self.keep_rule == KEEP_RULE_OLDEST:
+            return dupe.mtime
+        return self._default_key_func(dupe)
 
     @staticmethod
     def _tie_breaker(ref, dupe):
         refname = rem_file_ext(ref.name).lower()
         dupename = rem_file_ext(dupe.name).lower()
-        if "copy" in dupename:
+        if "copy" in dupename or "backup" in dupename:
             return False
-        if "copy" in refname:
+        if "copy" in refname or "backup" in refname:
             return True
         if is_same_with_digit(dupename, refname):
             return False
@@ -212,6 +229,7 @@ class Scanner:
     min_match_percentage = 80
     mix_file_kind = True
     scan_type = ScanType.FILENAME
+    keep_rule = KEEP_RULE_LARGEST
     scanned_tags = {"artist", "title"}
     size_threshold = 0
     large_size_threshold = 0

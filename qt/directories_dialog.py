@@ -27,6 +27,7 @@ from PyQt5.QtGui import QPixmap, QIcon
 
 from hscommon.trans import trget
 from core.app import AppMode
+from core.scanner import KEEP_RULE_LARGEST, KEEP_RULE_NEWEST, KEEP_RULE_OLDEST
 from qt.radio_box import RadioBox
 from qt.recent import Recent
 from qt.util import move_to_screen_center, create_actions
@@ -46,6 +47,7 @@ class DirectoriesDialog(QMainWindow):
         self.recentFolders = Recent(self.app, "recentFolders")
         self._setupUi()
         self._updateScanTypeList()
+        self._updateKeepRuleList()
         self.directoriesModel = DirectoriesModel(self.app.model.directory_tree, view=self.treeView)
         self.directoriesDelegate = DirectoriesDelegate()
         self.treeView.setItemDelegate(self.directoriesDelegate)
@@ -185,6 +187,22 @@ class DirectoriesDialog(QMainWindow):
         self.showPreferencesButton.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         hl.addWidget(self.showPreferencesButton)
         self.verticalLayout.addLayout(hl)
+        hl = QHBoxLayout()
+        hl.setAlignment(Qt.AlignLeft)
+        label = QLabel(tr("Keep:"), self)
+        label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        hl.addWidget(label)
+        self.keepRuleComboBox = QComboBox(self)
+        self.keepRuleComboBox.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed))
+        self.keepRuleComboBox.setMaximumWidth(400)
+        for rule_label, rule in [
+            (tr("Largest"), KEEP_RULE_LARGEST),
+            (tr("Newest"), KEEP_RULE_NEWEST),
+            (tr("Oldest"), KEEP_RULE_OLDEST),
+        ]:
+            self.keepRuleComboBox.addItem(rule_label, userData=rule)
+        hl.addWidget(self.keepRuleComboBox)
+        self.verticalLayout.addLayout(hl)
         self.promptLabel = QLabel(tr('Select folders to scan and press "Scan".'), self.centralwidget)
         self.verticalLayout.addWidget(self.promptLabel)
         self.treeView = QTreeView(self.centralwidget)
@@ -271,6 +289,19 @@ class DirectoriesDialog(QMainWindow):
         scan_type_index = SCAN_TYPE_ORDER.index(selected_scan_type)
         self.scanTypeComboBox.setCurrentIndex(scan_type_index)
         self.scanTypeComboBox.currentIndexChanged[int].connect(self.scanTypeChanged)
+        self.app._update_options()
+
+    def _updateKeepRuleList(self):
+        try:
+            self.keepRuleComboBox.currentIndexChanged[int].disconnect(self.keepRuleChanged)
+        except TypeError:
+            # Not connected, ignore
+            pass
+        index = self.keepRuleComboBox.findData(self.app.prefs.keep_rule)
+        if index < 0:
+            index = 0
+        self.keepRuleComboBox.setCurrentIndex(index)
+        self.keepRuleComboBox.currentIndexChanged[int].connect(self.keepRuleChanged)
         self.app._update_options()
 
     # --- QWidget overrides
@@ -361,6 +392,10 @@ class DirectoriesDialog(QMainWindow):
     def scanTypeChanged(self, index):
         scan_options = self.app.model.SCANNER_CLASS.get_scan_options()
         self.app.prefs.set_scan_type(self.app.model.app_mode, scan_options[index].scan_type)
+        self.app._update_options()
+
+    def keepRuleChanged(self, index):
+        self.app.prefs.keep_rule = self.keepRuleComboBox.itemData(index)
         self.app._update_options()
 
     def selectionChanged(self, selected, deselected):

@@ -11,7 +11,7 @@ from PyQt5.QtGui import QColor
 from hscommon import trans
 from hscommon.plat import ISLINUX
 from core.app import AppMode
-from core.scanner import ScanType
+from core.scanner import KEEP_RULE_LARGEST, ScanType
 from hscommon.util import tryint
 from qt.util import create_qsettings
 
@@ -226,6 +226,7 @@ class Preferences(PreferencesBase):
         self.scan_tag_year = get("ScanTagYear", self.scan_tag_year)
         self.match_scaled = get("MatchScaled", self.match_scaled)
         self.match_rotated = get("MatchRotated", self.match_rotated)
+        self.keep_rule = get("KeepRule", self.keep_rule)
 
     def reset(self):
         self.filter_hardness = 95
@@ -279,6 +280,7 @@ class Preferences(PreferencesBase):
         self.scan_tag_year = False
         self.match_scaled = False
         self.match_rotated = False
+        self.keep_rule = KEEP_RULE_LARGEST
 
     def _save_values(self, settings):
         set_ = self.set_value
@@ -333,6 +335,7 @@ class Preferences(PreferencesBase):
         set_("ScanTagYear", self.scan_tag_year)
         set_("MatchScaled", self.match_scaled)
         set_("MatchRotated", self.match_rotated)
+        set_("KeepRule", self.keep_rule)
 
     # scan_type is special because we save it immediately when we set it.
     def get_scan_type(self, app_mode):

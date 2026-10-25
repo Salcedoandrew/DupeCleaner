@@ -11,7 +11,7 @@ from core.scanner import Scanner as ScannerBase, ScanOption, ScanType
 
 class ScannerME(ScannerBase):
     @staticmethod
-    def _key_func(dupe):
+    def _default_key_func(dupe):
         return (-dupe.bitrate, -dupe.size)
 
     @staticmethod
