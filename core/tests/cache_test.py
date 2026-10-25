@@ -132,6 +132,34 @@ class TestCaseSqliteCache(BaseTestCaseCache):
         c = self.get_cache(dbname)
         eq_(c["foo"], [[(1, 2, 3)]] * 8)
 
+    def test_purge_outdated_replaced_within_same_second(self, tmpdir):
+        # Replacing a photo within the same second must purge its cached
+        # blocks: the old code stored whole seconds in the mtime_ns column
+        # and never checked the size, so the old picture's blocks were
+        # reused for the new picture.
+        path = str(tmpdir.join("pic.jpg"))
+        open(path, "wb").write(b"x" * 100)
+        c = self.get_cache()
+        c[path] = [[(0, 0, 0)]] * 8
+        open(path, "wb").write(b"y" * 200)  # different content, different size
+        c.purge_outdated()
+        assert path not in c
+
+    def test_purge_outdated_replaced_with_mtime_preserved(self, tmpdir):
+        # Same size, same restored mtime, different content: only the
+        # ctime gives the replacement away, so it is stored too.
+        import os
+
+        path = str(tmpdir.join("pic.jpg"))
+        open(path, "wb").write(b"x" * 100)
+        c = self.get_cache()
+        c[path] = [[(0, 0, 0)]] * 8
+        st = os.stat(path)
+        open(path, "wb").write(b"y" * 100)
+        os.utime(path, (st.st_atime, st.st_mtime))
+        c.purge_outdated()
+        assert path not in c
+
 
 class TestCaseCacheSQLEscape:
     def get_cache(self):

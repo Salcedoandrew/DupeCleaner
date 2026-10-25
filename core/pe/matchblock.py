@@ -82,8 +82,14 @@ def prepare_pictures(pictures, cache_path, with_dimensions, match_rotated, j=job
                     if match_rotated:
                         blocks = [picture.get_blocks(BLOCK_COUNT_PER_SIDE, orientation) for orientation in range(1, 9)]
                     else:
+                        # get_blocks() already returns the orientation-corrected
+                        # blocks, and the comparison in async_compare() only
+                        # ever reads slot 0. Storing them in slot
+                        # (orientation - 1) left slot 0 empty for any photo
+                        # with an EXIF orientation of 2-8, so those photos
+                        # never matched at all in the default scan.
                         blocks = [[]] * 8
-                        blocks[max(picture.get_orientation() - 1, 0)] = picture.get_blocks(BLOCK_COUNT_PER_SIDE)
+                        blocks[0] = picture.get_blocks(BLOCK_COUNT_PER_SIDE)
                     cache[picture.unicode_path] = blocks
                 prepared.append(picture)
             except (OSError, ValueError) as e:

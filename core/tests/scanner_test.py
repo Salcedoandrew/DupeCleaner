@@ -651,3 +651,29 @@ def test_prioritize_me(fake_fileexists):
     o2.bitrate = 2
     [group] = s.get_dupe_groups([o1, o2])
     assert group.ref is o2
+
+
+def test_remove_dupe_paths_keeps_case_differing_files(tmpdir):
+    # On a case-sensitive filesystem, IMG_001.JPG and Img_001.JPG are two
+    # different files. The old code lowercased the path before calling
+    # samefile(), the lookup failed, and the second file was silently
+    # dropped from the scan.
+    from core.scanner import remove_dupe_paths
+
+    root = Path(str(tmpdir))
+    for name in ("IMG_001.JPG", "Img_001.JPG"):
+        root.joinpath(name).write_text("data")
+    files = [fs.get_file(root.joinpath(n), [fs.File]) for n in ("IMG_001.JPG", "Img_001.JPG")]
+    kept = remove_dupe_paths(files)
+    eq_(2, len(kept))
+
+
+def test_remove_dupe_paths_collapses_same_path(tmpdir):
+    # The same path listed twice is still a duplicate and is collapsed.
+    from core.scanner import remove_dupe_paths
+
+    root = Path(str(tmpdir))
+    root.joinpath("foo.txt").write_text("data")
+    f = fs.get_file(root.joinpath("foo.txt"), [fs.File])
+    kept = remove_dupe_paths([f, f])
+    eq_(1, len(kept))

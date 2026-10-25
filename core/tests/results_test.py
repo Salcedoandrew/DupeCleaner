@@ -817,3 +817,47 @@ class TestCaseResultsRefFile:
     def test_stat_line(self):
         expected = "0 / 2 (0.00 B / 2.00 B) duplicates marked."
         eq_(expected, self.results.stat_line)
+
+    def test_remove_uncounted_ref_dupe_keeps_totals(self):
+        # objects[1] is a dupe of a reference folder: it is not markable
+        # and was never counted in the totals. Removing it must not change
+        # them (the old code subtracted it anyway, driving the count and
+        # size down).
+        self.results.remove_duplicates([self.objects[1]])
+        expected = "0 / 2 (0.00 B / 2.00 B) duplicates marked."
+        eq_(expected, self.results.stat_line)
+
+    def test_remove_batch_starting_with_ref_removes_the_rest(self):
+        # The group ref is not a dupe, so it is skipped, but the rest of
+        # the batch must still be removed (the old code returned early and
+        # silently left the batch in the results).
+        g1 = self.results.groups[0]
+        self.results.remove_duplicates([g1.ref, self.objects[2]])
+        assert self.objects[2] not in g1.dupes
+
+    def test_remove_same_dupe_twice_is_a_noop(self):
+        self.results.remove_duplicates([self.objects[2]])
+        self.results.remove_duplicates([self.objects[2]])  # must not crash
+        # objects[1] (a ref-folder dupe) is still there; objects[2] is gone.
+        eq_(1, len(self.results.groups[0].dupes))
+        assert self.objects[2] not in self.results.groups[0].dupes
+
+
+def test_save_load_keeps_size_and_mtime(tmpdir):
+    # save_to_xml stores size/mtime so a later load can tell whether a file
+    # changed since the scan before deleting it (see core/app.py).
+    app = DupeGuru()
+    objects, matches, groups = GetTestGroups()
+    objects[1].mtime = 1234567.0
+    app.results.groups = groups
+    filename = str(tmpdir.join("results.xml"))
+    app.results.save_to_xml(filename)
+
+    def get_file(path):
+        return [f for f in objects if str(f.path) == path][0]
+
+    loaded = Results(DupeGuru())
+    loaded.load_from_xml(filename, get_file)
+    by_path = {str(f.path): f for g in loaded.groups for f in g}
+    eq_(1024, by_path[str(objects[1].path)].size)
+    eq_(1234567.0, by_path[str(objects[1].path)].mtime)

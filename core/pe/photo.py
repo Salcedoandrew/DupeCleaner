@@ -53,10 +53,15 @@ class Photo(fs.File):
         try:
             with self.path.open("rb") as fp:
                 exifdata = exif.get_fields(fp)
-                return exifdata["DateTimeOriginal"]
+                timestamp = exifdata["DateTimeOriginal"]
         except Exception:
             logging.info("Couldn't read EXIF of picture: %s", self.path)
-        return ""
+            return ""
+        # DateTimeOriginal is an ASCII tag, but a corrupt file can declare
+        # it with a numeric type, in which case the parser returns a list.
+        # A list cannot be a dict key, and the EXIF matcher would crash the
+        # whole scan on that one file, so only a string counts as a timestamp.
+        return timestamp if isinstance(timestamp, str) else ""
 
     @classmethod
     def can_handle(cls, path):

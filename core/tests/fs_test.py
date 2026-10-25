@@ -111,3 +111,36 @@ def test_has_file_attrs(tmpdir):
     b = fs.Folder(Path(str(tmpdir)))
     assert b.mtime > 0
     eq_(b.extension, "")
+
+
+def test_unreadable_file_digest_is_none(tmpdir):
+    # A digest that could not be read must be None, not b"": two files
+    # hashing to b"" would be reported as exact duplicates of each other.
+    p = Path(str(tmpdir)).joinpath("gone.test")
+    f = fs.File(p)
+    eq_(None, f.digest)
+    eq_(None, f.digest_partial)
+    eq_(None, f.digest_samples)
+
+
+def test_filesdb_cache_key_includes_ctime(tmpdir):
+    # Replacing a file with different content of the same size while
+    # preserving its mtime (cp -p, rsync -a restore) must not reuse the old
+    # file's cached digest: ctime changes on any write, mtime does not.
+    import os
+
+    from core.fs import FilesDB
+
+    db = FilesDB()
+    db.connect(str(Path(str(tmpdir)).joinpath("cache.db")))
+    try:
+        p = Path(str(tmpdir)).joinpath("f.test")
+        p.write_bytes(b"aaaaaaaaaa")
+        db.put(p, "digest", b"digest-v1")
+        eq_(b"digest-v1", db.get(p, "digest"))
+        st = p.stat()
+        p.write_bytes(b"bbbbbbbbbb")  # same size, different content
+        os.utime(p, (st.st_atime, st.st_mtime))  # restore mtime; ctime moved on
+        eq_(None, db.get(p, "digest"))
+    finally:
+        db.close()

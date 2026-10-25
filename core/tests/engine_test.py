@@ -559,6 +559,22 @@ class TestCaseGetMatchesByContents:
         r = getmatches_by_contents(f, bigsize=0)
         eq_(len(r), 1)
 
+    def test_big_file_same_samples_different_full_digest_no_match(self):
+        # Sampling is only a pre-filter: two big files that agree on the
+        # sampled chunks but differ elsewhere are not duplicates.
+        bigsize = 100 * 1024 * 1024
+        f = [no("bigfoo", size=bigsize + 1), no("bigbar", size=bigsize + 1)]
+        f[0].digest_partial = f[0].digest_samples = "same"
+        f[1].digest_partial = f[1].digest_samples = "same"
+        f[0].digest = "full-foo"
+        f[1].digest = "full-bar"
+        r = getmatches_by_contents(f, bigsize=bigsize)
+        eq_(0, len(r))
+        # ... but when the full digests agree too, they do match.
+        f[1].digest = "full-foo"
+        r = getmatches_by_contents(f, bigsize=bigsize)
+        eq_(1, len(r))
+
 
 class TestCaseGroup:
     def test_empty(self):

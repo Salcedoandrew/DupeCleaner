@@ -98,18 +98,21 @@ class OperationError(FSError):
 
 
 class FilesDB:
-    schema_version = 1
-    schema_version_description = "Changed from md5 to xxhash if available."
+    schema_version = 2
+    schema_version_description = "Changed from md5 to xxhash if available. Added ctime_ns to the cache key."
 
     create_table_query = """CREATE TABLE IF NOT EXISTS files (path TEXT PRIMARY KEY, size INTEGER, mtime_ns INTEGER,
-        entry_dt DATETIME, digest BLOB, digest_partial BLOB, digest_samples BLOB)"""
+        ctime_ns INTEGER, entry_dt DATETIME, digest BLOB, digest_partial BLOB, digest_samples BLOB)"""
     drop_table_query = "DROP TABLE IF EXISTS files;"
-    select_query = "SELECT {key} FROM files WHERE path=:path AND size=:size and mtime_ns=:mtime_ns"
+    select_query = (
+        "SELECT {key} FROM files WHERE path=:path AND size=:size and mtime_ns=:mtime_ns and ctime_ns=:ctime_ns"
+    )
     select_query_ignore_mtime = "SELECT {key} FROM files WHERE path=:path AND size=:size"
     insert_query = """
-        INSERT INTO files (path, size, mtime_ns, entry_dt, {key})
-        VALUES (:path, :size, :mtime_ns, datetime('now'), :value)
-        ON CONFLICT(path) DO UPDATE SET size=:size, mtime_ns=:mtime_ns, entry_dt=datetime('now'), {key}=:value;
+        INSERT INTO files (path, size, mtime_ns, ctime_ns, entry_dt, {key})
+        VALUES (:path, :size, :mtime_ns, :ctime_ns, datetime('now'), :value)
+        ON CONFLICT(path) DO UPDATE SET size=:size, mtime_ns=:mtime_ns, ctime_ns=:ctime_ns,
+            entry_dt=datetime('now'), {key}=:value;
     """
 
     ignore_mtime = False
@@ -153,6 +156,13 @@ class FilesDB:
         stat = path.stat()
         size = stat.st_size
         mtime_ns = stat.st_mtime_ns
+        # ctime changes on any content or metadata write, even when the mtime
+        # is preserved (cp -p, rsync -a restore, timestamp-preserving editors),
+        # so it belongs in the cache key: without it a replaced file reuses the
+        # old file's digest. The ignore_mtime path keeps its old behaviour on
+        # purpose: that option explicitly asks to reuse hashes across mtime
+        # changes.
+        ctime_ns = stat.st_ctime_ns
         try:
             with self.conn as conn:
                 if self.ignore_mtime:
@@ -162,7 +172,7 @@ class FilesDB:
                 else:
                     cursor = conn.execute(
                         self.select_query.format(key=key),
-                        {"path": str(path), "size": size, "mtime_ns": mtime_ns},
+                        {"path": str(path), "size": size, "mtime_ns": mtime_ns, "ctime_ns": ctime_ns},
                     )
                 result = cursor.fetchone()
                 cursor.close()
@@ -178,11 +188,12 @@ class FilesDB:
         stat = path.stat()
         size = stat.st_size
         mtime_ns = stat.st_mtime_ns
+        ctime_ns = stat.st_ctime_ns
         try:
             with self.lock, self.conn as conn:
                 conn.execute(
                     self.insert_query.format(key=key),
-                    {"path": str(path), "size": size, "mtime_ns": mtime_ns, "value": value},
+                    {"path": str(path), "size": size, "mtime_ns": mtime_ns, "ctime_ns": ctime_ns, "value": value},
                 )
         except Exception as ex:
             logging.warning(f"Couldn't put {key} for {path} w/{size}, {mtime_ns}: {ex}")
@@ -232,7 +243,15 @@ class File:
                 logging.warning("An error '%s' was raised while decoding '%s'", e, repr(self.path))
             result = object.__getattribute__(self, attrname)
             if result is NOT_SET:
-                result = self.INITIAL_INFO[attrname]
+                # A digest we could not read must be None, not b"": b"" is
+                # equal to every other unreadable file's digest, so two
+                # unreadable files would be reported as exact duplicates.
+                # Every digest comparison in the codebase already treats
+                # None as "unknown, do not match".
+                if attrname in ("digest", "digest_partial", "digest_samples"):
+                    result = None
+                else:
+                    result = self.INITIAL_INFO[attrname]
         return result
 
     def _calc_digest(self):

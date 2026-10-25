@@ -27,5 +27,18 @@ def getmatches(files, match_scaled, j):
         for p1, p2 in combinations(pictures, 2):
             if (not match_scaled) and (p1.dimensions != p2.dimensions):
                 continue
-            matches.append(Match(p1, p2, 100))
+            # A shared timestamp alone does not make two photos duplicates:
+            # burst shots and two cameras sharing a clock land in the same
+            # second. Only call it 100% when the file contents agree too
+            # (same rule as the block matcher, which downgrades a 100%
+            # block match to 99% when the contents differ). A 99% match
+            # still groups scaled copies of the same photo, whose bytes
+            # differ by design.
+            percentage = 100
+            try:
+                if p1.digest is None or p2.digest is None or p1.digest != p2.digest:
+                    percentage = 99
+            except Exception:
+                percentage = 99
+            matches.append(Match(p1, p2, percentage))
     return matches

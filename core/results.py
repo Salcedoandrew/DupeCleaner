@@ -245,6 +245,19 @@ class Results(Markable):
                     continue
                 file.words = words.split(",")
                 file.is_ref = file_elem.get("is_ref") == "y"
+                # Restore the size/mtime the file had when the results were
+                # saved: the delete re-check in core/app.py compares the file
+                # against these values, and a freshly created File would
+                # otherwise read the *current* values and the check would be
+                # a no-op for loaded results. Old files without these
+                # attributes load as before (check skipped for them).
+                try:
+                    if file_elem.get("size") is not None:
+                        file.size = int(file_elem.get("size"))
+                    if file_elem.get("mtime") is not None:
+                        file.mtime = float(file_elem.get("mtime"))
+                except (TypeError, ValueError):
+                    pass
                 dupes.append(file)
                 if file_elem.get("marked") == "y":
                     marked.add(file)
@@ -318,14 +331,23 @@ class Results(Markable):
         affected_groups = set()
         for dupe in dupes:
             group = self.get_group_of_duplicate(dupe)
-            if dupe not in group.dupes:
-                return
+            # A dupe that is not in any group (already removed, or the group
+            # ref passed in by mistake) is a no-op, not a crash and not a
+            # reason to abandon the rest of the batch.
+            if group is None or dupe not in group.dupes:
+                continue
+            # The totals only count markable dupes (see __recalculate_stats),
+            # so only subtract when this dupe was actually counted. Ref-folder
+            # dupes are not markable: removing one used to drive the count
+            # negative, which the max(0, ...) clamp on the size only hid.
+            was_markable = self._is_markable(dupe)
             ref = group.ref
             group.remove_dupe(dupe, False)
             del self.__group_of_duplicate[dupe]
             self._remove_mark_flag(dupe)
-            self.__total_count -= 1
-            self.__total_size = max(0, self.__total_size - dupe.size)
+            if was_markable:
+                self.__total_count -= 1
+                self.__total_size -= dupe.size
             if not group:
                 del self.__group_of_duplicate[ref]
                 self.__groups.remove(group)
@@ -362,6 +384,13 @@ class Results(Markable):
                     file_elem.set("path", "")
                 file_elem.set("is_ref", ("y" if d.is_ref else "n"))
                 file_elem.set("marked", ("y" if self.is_marked(d) else "n"))
+                # Size/mtime at save time, so a later load can tell whether
+                # the file changed since the scan before deleting it.
+                # (Test fakes have no mtime; skip the attributes then.)
+                if getattr(d, "size", None) is not None:
+                    file_elem.set("size", str(d.size))
+                if getattr(d, "mtime", None) is not None:
+                    file_elem.set("mtime", str(d.mtime))
             for match in g.matches:
                 match_elem = ET.SubElement(group_elem, "match")
                 match_elem.set("first", str(dupe2index[match.first]))

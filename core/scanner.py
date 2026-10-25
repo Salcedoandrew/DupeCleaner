@@ -60,7 +60,11 @@ def remove_dupe_paths(files):
         normalized = str(f.path).lower()
         if normalized in path2file:
             try:
-                if op.samefile(normalized, str(path2file[normalized].path)):
+                # Compare the real paths, not the lowercased one: on a
+                # case-sensitive filesystem the lowercased path does not
+                # exist, samefile() raises OSError, and the file below was
+                # silently dropped from the scan.
+                if op.samefile(str(f.path), str(path2file[normalized].path)):
                     continue  # same file, it's a dupe
                 else:
                     pass  # We don't treat them as dupes

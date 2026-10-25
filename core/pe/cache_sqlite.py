@@ -15,12 +15,16 @@ from core.pe.cache import bytes_to_colors, colors_to_bytes
 class SqliteCache:
     """A class to cache picture blocks in a sqlite backend."""
 
-    schema_version = 2
-    schema_version_description = "Added blocks for all 8 orientations."
+    schema_version = 3
+    schema_version_description = (
+        "Non-rotated scans store blocks in slot 0; mtime_ns is now really nanoseconds, "
+        "and size and ctime_ns are stored too."
+    )
 
     create_table_query = (
         "CREATE TABLE IF NOT EXISTS "
-        "pictures(path TEXT, mtime_ns INTEGER, blocks BLOB, blocks2 BLOB, blocks3 BLOB, "
+        "pictures(path TEXT, mtime_ns INTEGER, size INTEGER, ctime_ns INTEGER, "
+        "blocks BLOB, blocks2 BLOB, blocks3 BLOB, "
         "blocks4 BLOB, blocks5 BLOB, blocks6 BLOB, blocks7 BLOB, blocks8 BLOB)"
     )
     create_index_query = "CREATE INDEX IF NOT EXISTS idx_path on pictures (path)"
@@ -78,22 +82,33 @@ class SqliteCache:
     def __setitem__(self, path_str, blocks):
         blocks = [colors_to_bytes(block) for block in blocks]
         if op.exists(path_str):
-            mtime = int(os.stat(path_str).st_mtime)
+            # mtime_ns really is nanoseconds now: the old code stored whole
+            # seconds here, so a photo replaced within the same second kept
+            # the old picture's blocks. Size and ctime are stored too, for
+            # the same reason: a replacement of the same size with a
+            # preserved timestamp must not reuse the old blocks either.
+            stat = os.stat(path_str)
+            mtime = stat.st_mtime_ns
+            size = stat.st_size
+            ctime = stat.st_ctime_ns
         else:
             mtime = 0
+            size = 0
+            ctime = 0
         if path_str in self:
             sql = (
                 "update pictures set blocks = ?, blocks2 = ?, blocks3 = ?, blocks4 = ?, blocks5 = ?, blocks6 = ?, "
-                "blocks7 = ?, blocks8 = ?, mtime_ns = ?"
+                "blocks7 = ?, blocks8 = ?, mtime_ns = ?, size = ?, ctime_ns = ?"
                 "where path = ?"
             )
         else:
             sql = (
-                "insert into pictures(blocks,blocks2,blocks3,blocks4,blocks5,blocks6,blocks7,blocks8,mtime_ns,path) "
-                "values(?,?,?,?,?,?,?,?,?,?)"
+                "insert into pictures(blocks,blocks2,blocks3,blocks4,blocks5,blocks6,blocks7,blocks8,"
+                "mtime_ns,size,ctime_ns,path) "
+                "values(?,?,?,?,?,?,?,?,?,?,?,?)"
             )
         try:
-            self.con.execute(sql, blocks + [mtime, path_str])
+            self.con.execute(sql, blocks + [mtime, size, ctime, path_str])
         except sqlite.OperationalError:
             logging.warning("Picture cache could not set value for key %r", path_str)
         except sqlite.DatabaseError as e:
@@ -181,16 +196,18 @@ class SqliteCache:
     def purge_outdated(self):
         """Go through the cache and purge outdated records.
 
-        A record is outdated if the picture doesn't exist or if its mtime is greater than the one in
-        the db.
+        A record is outdated if the picture doesn't exist or if its mtime,
+        size, or ctime differ from the ones in the db. Any of them changing
+        means the cached blocks describe a different picture than the one
+        on disk.
         """
         todelete = []
-        sql = "select rowid, path, mtime_ns from pictures"
+        sql = "select rowid, path, mtime_ns, size, ctime_ns from pictures"
         cur = self.con.execute(sql)
-        for rowid, path_str, mtime_ns in cur:
+        for rowid, path_str, mtime_ns, size, ctime_ns in cur:
             if mtime_ns and op.exists(path_str):
-                picture_mtime = os.stat(path_str).st_mtime
-                if int(picture_mtime) <= mtime_ns:
+                stat = os.stat(path_str)
+                if stat.st_mtime_ns == mtime_ns and stat.st_size == size and stat.st_ctime_ns == ctime_ns:
                     # not outdated
                     continue
             todelete.append(rowid)

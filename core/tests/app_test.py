@@ -507,3 +507,36 @@ class TestAppWithDirectoriesInTree:
         subnode = node[0]
         eq_(subnode.state, 1)
         self.dtree.view.check_gui_calls(["refresh_states"])
+
+
+def test_do_delete_dupe_refuses_changed_file(tmpdir):
+    # The file was edited after the scan: deleting it would trash the new
+    # version while the untouched reference stays. The delete must refuse
+    # and the file must still be there.
+    from core.tests.base import DupeGuru
+
+    app = DupeGuru()
+    p = Path(str(tmpdir)).joinpath("photo.jpg")
+    p.write_bytes(b"original-content")
+    dupe = fs.get_file(p, [fs.File])
+    # Read the scan-time values so they are cached before the file changes.
+    _ = (dupe.size, dupe.mtime)
+    p.write_bytes(b"edited-content-that-is-longer")
+    with pytest.raises(OSError):
+        app._do_delete_dupe(dupe, False, False, False)
+    assert p.exists()
+
+
+def test_do_delete_dupe_removes_unchanged_file(tmpdir):
+    # The control case: a file that did not change since the scan is
+    # deleted as before (direct deletion here, so no trash is involved).
+    from core.tests.base import DupeGuru
+
+    app = DupeGuru()
+    p = Path(str(tmpdir)).joinpath("photo.jpg")
+    p.write_bytes(b"original-content")
+    dupe = fs.get_file(p, [fs.File])
+    # Read the scan-time values so they are cached.
+    _ = (dupe.size, dupe.mtime)
+    app._do_delete_dupe(dupe, False, False, True)
+    assert not p.exists()

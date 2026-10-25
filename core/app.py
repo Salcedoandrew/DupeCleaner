@@ -234,6 +234,23 @@ class DupeGuru(Broadcaster):
     def _do_delete_dupe(self, dupe, link_deleted, use_hardlinks, direct_deletion):
         if not dupe.path.exists():
             return
+        # Re-check the file against what the scan saw before deleting it.
+        # The scan may be old: the user could have edited this copy in place,
+        # another app could have overwritten it, or the results could have
+        # been loaded from a file saved last week. Deleting without this check
+        # trashes the new version while the untouched reference stays. Raising
+        # OSError records it as a problem and leaves the file in the results
+        # (see perform_on_marked), instead of deleting it.
+        if not op.isdir(str(dupe.path)):
+            try:
+                current = dupe.path.stat()
+            except OSError:
+                return  # gone between the exists() check and the stat; nothing to do
+            if current.st_size != dupe.size or (dupe.mtime and current.st_mtime != dupe.mtime):
+                raise OSError(
+                    f"'{dupe.path}' changed since it was scanned "
+                    f"(size {dupe.size} -> {current.st_size}); not deleting it"
+                )
         logging.debug("Sending '%s' to trash", dupe.path)
         str_path = str(dupe.path)
         if direct_deletion:

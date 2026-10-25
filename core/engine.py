@@ -300,13 +300,27 @@ def getmatches_by_contents(files, bigsize=0, j=job.nulljob):
             if first.is_ref and second.is_ref:
                 continue  # Don't spend time comparing two ref pics together.
             if first.size == 0 and second.size == 0:
-                # skip hashing for zero length files
+                # skip hashing for zero length files, but only if both files
+                # really exist: a file whose size could not be read falls back
+                # to 0, and two such files must not "match" as empty files.
+                # (Test fakes have no exists() method; they keep the old
+                # behaviour.)
+                if hasattr(first, "exists") and not (first.exists() and second.exists()):
+                    continue
                 result.append(Match(first, second, 100))
                 continue
             # if digests are the same (and not None) then files match
             if first.digest_partial is not None and first.digest_partial == second.digest_partial:
                 if bigsize > 0 and first.size > bigsize:
-                    if first.digest_samples is not None and first.digest_samples == second.digest_samples:
+                    # Sampling is only a pre-filter: two big files that agree
+                    # on the sampled chunks can still differ elsewhere, so the
+                    # full digest has to agree too before we call them a match.
+                    if (
+                        first.digest_samples is not None
+                        and first.digest_samples == second.digest_samples
+                        and first.digest is not None
+                        and first.digest == second.digest
+                    ):
                         result.append(Match(first, second, 100))
                 else:
                     if first.digest is not None and first.digest == second.digest:

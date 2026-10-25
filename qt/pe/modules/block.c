@@ -38,6 +38,13 @@ static PyObject *getblock(PyObject *image, int width, int height) {
     Py_DECREF(sipptr);
     s = (char *)PyCapsule_GetPointer(bits_capsule, NULL);
     Py_DECREF(bits_capsule);
+    if (s == NULL) {
+      /* A null image (e.g. a crop outside the image) has no pixel data.
+       * Dereferencing s would segfault the whole scan, so fail the call
+       * instead and let the caller report the picture as a problem. */
+      PyErr_SetString(PyExc_ValueError, "null image data in getblock");
+      return NULL;
+    }
     /* Qt aligns all its lines on 32bit, which means that if the number of bytes
      *per line for image is not divisible by 4, there's going to be crap
      *inserted in "s" We have to take this into account when calculating offsets
@@ -83,7 +90,10 @@ static PyObject *getblock(PyObject *image, int width, int height) {
  *these cases, blocks will be, of course, 1 pixel big. But also, because all
  *compared block lists are required to be of the same size, any block that has
  * no pixel to be assigned to will simply be assigned the last pixel. This is
- *why we have min(..., height-block_height-1) and stuff like that.
+ *why we have min(..., height-block_height) and stuff like that. The bound is
+ *height-block_height, not height-block_height-1: with the -1, a 1-pixel-tall
+ *image gets top = -1, QImage::copy returns a null image, and getblock used to
+ *read through its NULL pixel pointer and segfault the scan.
  **/
 static PyObject *block_getblocks(PyObject *self, PyObject *args) {
   int block_count_per_side, width, height, block_width, block_height, ih;
@@ -116,13 +126,13 @@ static PyObject *block_getblocks(PyObject *self, PyObject *args) {
 
   for (ih = 0; ih < block_count_per_side; ih++) {
     int top, iw;
-    top = min(ih * block_height, height - block_height - 1);
+    top = min(ih * block_height, height - block_height);
     for (iw = 0; iw < block_count_per_side; iw++) {
       int left;
       PyObject *pcrop;
       PyObject *pblock;
 
-      left = min(iw * block_width, width - block_width - 1);
+      left = min(iw * block_width, width - block_width);
       pcrop = PyObject_CallMethod(image, "copy", "iiii", left, top, block_width,
                                   block_height);
       if (pcrop == NULL) {
