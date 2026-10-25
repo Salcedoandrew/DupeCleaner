@@ -1,7 +1,27 @@
 # DupeCleaner
 
-[DupeCleaner][dupecleaner] is a cross-platform (Linux, OS X, Windows) GUI tool to find duplicate files in
-a system. It is written mostly in Python 3 and uses [qt](https://www.qt.io/) for the UI.
+**DupeCleaner finds the duplicate files hiding on your computer — and helps you get rid of them safely.**
+
+It's a cross-platform GUI tool for Linux, macOS, and Windows, written mostly in Python 3 with a Qt5 interface. It's built for real libraries — tens of thousands of photos and songs — not a demo folder.
+
+This is my own edition of [dupeGuru](https://github.com/arsenetar/dupeguru) by Hardcoded Software, with the delete engine hardened: files are re-checked before they're deleted, big files are matched on their full contents (not just samples), and photo matching handles rotated phone photos.
+
+## What it finds
+
+* **Standard mode** — scans filenames or file contents. The filename scan uses fuzzy matching, so it finds duplicates even when the names aren't exactly the same.
+* **Music mode** — scans audio tags and shows music-specific info (artist, album, bitrate, …) in the results, so you can tell versions apart.
+* **Picture mode** — scans pictures fuzzily, so it finds photos that are similar but not exactly the same: different sizes, recompressed copies, rotated shots.
+
+## Why use it
+
+* **Fast.** The fuzzy matching engine finds duplicates in minutes, even across a big library.
+* **Customizable.** Tweak the matching engine to find exactly the kind of duplicates you want. Every scanning setting is listed on the Preference page of the help file.
+* **Safe.** The engine was designed with safety in mind: the reference-directory system and the grouping system keep you from deleting files you didn't mean to delete. And before anything is deleted, the file is re-checked to make sure it hasn't changed since the scan.
+* **Flexible.** Delete duplicates, or move or copy them elsewhere instead. Filter and sort the results to weed out false positives, especially on low-threshold scans.
+
+## Languages
+
+English, French, German, Chinese (Simplified), Czech, Italian, Armenian, Russian, Ukrainian, Brazilian Portuguese, Vietnamese.
 
 ## Current status
 Still looking for additional help especially with regards to:
@@ -24,6 +44,8 @@ This folder contains the source for DupeCleaner. Its documentation is in `help`,
 * hscommon: A collection of helpers used across HS applications.
 
 ## How to build DupeCleaner from source
+
+GitHub Actions also builds the macOS and Windows apps on every push — see the Actions tab for the latest artifacts.
 
 ### Windows & macOS specific additional instructions
 For windows instructions see the [Windows Instructions](Windows.md).
