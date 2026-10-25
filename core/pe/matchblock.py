@@ -15,6 +15,7 @@ from hscommon.util import extract, iterconsume
 from hscommon.trans import tr
 from hscommon.jobprogress import job
 
+from core import volumes
 from core.engine import Match
 from core.pe.block import avgdiff, DifferentBlockCountError, NoBlocksError
 from core.pe.cache_sqlite import SqliteCache
@@ -134,7 +135,13 @@ def _prepare_in_parallel(to_compute, cache, match_rotated, with_dimensions, tick
         # soon as the parent has decoded an image first). Spawn is the
         # default on macOS anyway, so the frozen app behaves the same as
         # the comparison pool there.
-        pool = multiprocessing.get_context("spawn").Pool()
+        # The pool is capped when the pictures live on a network volume
+        # (see core/volumes.py): a full core count of readers saturates
+        # a remote share. Local disks keep the full CPU count.
+        processes = volumes.pool_size_for_paths(
+            [picture.unicode_path for _, picture in to_compute], multiprocessing.cpu_count()
+        )
+        pool = multiprocessing.get_context("spawn").Pool(processes=processes)
         for pos, (dimensions, blocks, error) in enumerate(pool.imap(_prepare_picture_task, tasks)):
             index, picture = to_compute[pos]
             if error is None:

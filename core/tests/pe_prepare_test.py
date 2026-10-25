@@ -249,6 +249,60 @@ def test_spawn_worker_decodes_with_qimage(tmpdir):
             eq_(pic.get_blocks(matchblock.BLOCK_COUNT_PER_SIDE, orientation), blocks[orientation - 1])
 
 
+def test_parallel_prep_caps_workers_on_network_volume(tmpdir, monkeypatch):
+    # Pictures on a network volume: the spawn pool must be capped at
+    # NETWORK_VOLUME_MAX_WORKERS (6), even on a machine with more CPUs.
+    pics = []
+    for i in range(40):
+        path = tmpdir.join("p%d.jpg" % i)
+        path.write_binary(b"x")
+        pics.append(CountingPhoto(str(path)))
+    counter = str(tmpdir.join("calls.txt"))
+    monkeypatch.setenv("DUPECLEANER_PREP_COUNT_FILE", counter)
+    real_ctx = multiprocessing.get_context("spawn")
+    seen = {}
+
+    class _Ctx:
+        def Pool(self, *args, **kwargs):
+            seen.update(kwargs)
+            return real_ctx.Pool(*args, **kwargs)
+
+    monkeypatch.setattr(matchblock.multiprocessing, "get_context", lambda name: _Ctx())
+    monkeypatch.setattr(matchblock.multiprocessing, "cpu_count", lambda: 8)
+    monkeypatch.setattr(matchblock.volumes, "is_network_path", lambda path, _mount_table=None: True)
+    dbpath = str(tmpdir.join("piccache.db"))
+    prepared = prepare_pictures(pics, dbpath, with_dimensions=False, match_rotated=False, j=jobmod.nulljob)
+    eq_(40, len(prepared))
+    eq_(matchblock.volumes.NETWORK_VOLUME_MAX_WORKERS, seen.get("processes"))
+
+
+def test_parallel_prep_uses_full_cpu_count_on_local_volume(tmpdir, monkeypatch):
+    # Pictures on a local disk: the pool keeps the full CPU count, so
+    # the cap is a no-op for local scans.
+    pics = []
+    for i in range(40):
+        path = tmpdir.join("p%d.jpg" % i)
+        path.write_binary(b"x")
+        pics.append(CountingPhoto(str(path)))
+    counter = str(tmpdir.join("calls.txt"))
+    monkeypatch.setenv("DUPECLEANER_PREP_COUNT_FILE", counter)
+    real_ctx = multiprocessing.get_context("spawn")
+    seen = {}
+
+    class _Ctx:
+        def Pool(self, *args, **kwargs):
+            seen.update(kwargs)
+            return real_ctx.Pool(*args, **kwargs)
+
+    monkeypatch.setattr(matchblock.multiprocessing, "get_context", lambda name: _Ctx())
+    monkeypatch.setattr(matchblock.multiprocessing, "cpu_count", lambda: 8)
+    monkeypatch.setattr(matchblock.volumes, "is_network_path", lambda path, _mount_table=None: False)
+    dbpath = str(tmpdir.join("piccache.db"))
+    prepared = prepare_pictures(pics, dbpath, with_dimensions=False, match_rotated=False, j=jobmod.nulljob)
+    eq_(40, len(prepared))
+    eq_(8, seen.get("processes"))
+
+
 @requires_qt
 def test_pool_failure_falls_back_to_sequential(tmpdir, monkeypatch):
     # If the pool cannot even start, preparation falls back to the
