@@ -103,6 +103,15 @@ def test_darwin_statfs_flag(darwin, monkeypatch):
     assert not is_network_path("/Volumes/NAS/a.jpg")
 
 
+def test_statfs_buffer_fits_whole_struct():
+    # Regression test for the macOS segfault: statfs() writes the whole
+    # struct statfs (~2 KB on macOS), so the buffer it writes into must
+    # be comfortably bigger than that. A hand-defined struct ending at
+    # f_flags is only 72 bytes and overflows the heap.
+    assert volumes._STATFS_BUFFER_SIZE >= 4096
+    assert volumes._F_FLAGS_OFFSET == 64
+
+
 def test_windows_drive_type(windows, monkeypatch):
     monkeypatch.setattr(volumes, "_windows_drive_type", lambda path: 4)  # DRIVE_REMOTE
     assert is_network_path("Z:\\photos\\a.jpg")

@@ -60,6 +60,12 @@ NETWORK_FSTYPES = frozenset(
 # (SMB, NFS, AFP, ...) do not have it.
 _MNT_LOCAL = 0x00001000
 
+# Offset of f_flags in macOS struct statfs: 4 + 4 + 5*8 + 8 + 4 + 4 = 64.
+# The buffer statfs writes into must hold the whole struct (~2 KB on
+# macOS), so it is allocated generously -- see _statfs_flags.
+_F_FLAGS_OFFSET = 64
+_STATFS_BUFFER_SIZE = 4096
+
 # Windows GetDriveTypeW() return value for a network drive.
 _DRIVE_REMOTE = 4
 
@@ -70,36 +76,22 @@ _DRIVE_REMOTE = 4
 # ---------------------------------------------------------------------------
 
 
-class _Statfs(ctypes.Structure):
-    """struct statfs from macOS <sys/mount.h>, up to the flags field.
-
-    Only f_flags is read, but the fields before it must line up exactly
-    or the offset is wrong.
-    """
-
-    _fields_ = [
-        ("f_bsize", ctypes.c_uint32),
-        ("f_iosize", ctypes.c_int32),
-        ("f_blocks", ctypes.c_uint64),
-        ("f_bfree", ctypes.c_uint64),
-        ("f_bavail", ctypes.c_uint64),
-        ("f_files", ctypes.c_uint64),
-        ("f_ffree", ctypes.c_uint64),
-        ("f_fsid", ctypes.c_int32 * 2),
-        ("f_owner", ctypes.c_uint32),
-        ("f_type", ctypes.c_uint32),
-        ("f_flags", ctypes.c_uint32),
-    ]
-
-
 def _statfs_flags(path):
-    """Return the statfs f_flags for ``path`` on macOS, or None on failure."""
+    """Return the statfs f_flags for ``path`` on macOS, or None on failure.
+
+    The flags live at a fixed offset (64) in struct statfs, but the whole
+    struct is ~2 KB -- so the call writes into a generously sized raw
+    buffer instead of a hand-defined struct. (A struct defined only up
+    to f_flags is 72 bytes; statfs would write past it and corrupt the
+    heap, which crashed the macOS CI job -- and would have crashed the
+    shipped app on any scan.)
+    """
     try:
         libc = ctypes.CDLL("libc.dylib", use_errno=True)
-        buf = _Statfs()
-        if libc.statfs(os.fsencode(path), ctypes.byref(buf)) != 0:
+        buf = ctypes.create_string_buffer(_STATFS_BUFFER_SIZE)
+        if libc.statfs(os.fsencode(path), buf) != 0:
             return None
-        return buf.f_flags
+        return ctypes.c_uint32.from_buffer(buf, _F_FLAGS_OFFSET).value
     except Exception:
         return None
 
