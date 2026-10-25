@@ -47,6 +47,7 @@ Planned features, roughly in priority order. Ideas welcome — open an issue to 
 - [ ] **Broken Files finder** — flag photos and audio that fail to decode. *(medium)*
 - [ ] **Folder priority** — give a folder a priority so its files are always kept over duplicates elsewhere. *(medium)*
 - [ ] **File-type filter per scan** — scan only certain file types, or exclude some. *(medium)*
+- [ ] **Operation History** — keep a record of past cleanups: what was deleted and how much space came back. *(easy-medium)*
 - [ ] **Similar Videos** — find near-duplicate videos by comparing frames. *(hard — needs ffmpeg)*
 
 ## 🌍 Languages
