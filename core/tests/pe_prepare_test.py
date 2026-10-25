@@ -7,6 +7,7 @@
 # skipped instead of crashing the scan, a broken pool falls back to the
 # sequential loop, and QImage decoding works in a spawned worker.
 
+import glob
 import multiprocessing
 import os
 from pathlib import Path
@@ -131,21 +132,33 @@ class FakePhoto:
 
 
 class CountingPhoto(FakePhoto):
-    """Counts every get_blocks call by appending to a file.
+    """Counts every get_blocks call by appending to a per-pid file.
 
     The path comes from an env var, not a class attribute: spawned
     workers re-import this module, so a value set on the class in the
     parent would not be visible to them, but the environment is inherited.
+    One file per pid (not one shared file): concurrent appends to a
+    single file from several workers lose lines on Windows, where
+    cross-process append is not atomic the way POSIX O_APPEND is.
     """
 
     def get_blocks(self, block_count_per_side, orientation=None):
         counter = os.environ.get("DUPECLEANER_PREP_COUNT_FILE")
         if counter:
-            with open(counter, "a") as f:
-                # The pid proves the work really happened in pool workers
-                # (several pids) rather than in the test process alone.
-                f.write("%d:%s\n" % (os.getpid(), self.unicode_path))
+            with open("%s.%d" % (counter, os.getpid()), "a") as f:
+                f.write("%s\n" % self.unicode_path)
         return super().get_blocks(block_count_per_side, orientation)
+
+
+def count_calls(counter):
+    """Total get_blocks calls recorded, and the set of worker pids."""
+    total = 0
+    pids = set()
+    for path in glob.glob(counter + ".*"):
+        pids.add(path.rsplit(".", 1)[1])
+        with open(path) as f:
+            total += len(f.readlines())
+    return total, pids
 
 
 def test_cached_pictures_are_not_recomputed(tmpdir, monkeypatch):
@@ -159,16 +172,16 @@ def test_cached_pictures_are_not_recomputed(tmpdir, monkeypatch):
     dbpath = str(tmpdir.join("piccache.db"))
     prepared = prepare_pictures(pics, dbpath, with_dimensions=False, match_rotated=False, j=jobmod.nulljob)
     eq_(40, len(prepared))
-    with open(counter) as f:
-        lines = f.readlines()
-    eq_(40, len(lines))
-    pids = {line.split(":", 1)[0] for line in lines}
+    total, pids = count_calls(counter)
+    eq_(40, total)
+    # The pid proves the work really happened in pool workers (several
+    # pids) rather than in the test process alone.
     assert len(pids) > 1, "expected the pool workers (several pids), got %s" % (pids,)
     # Second run, same cache: everything is cached, so nothing is recomputed.
     prepared = prepare_pictures(pics, dbpath, with_dimensions=False, match_rotated=False, j=jobmod.nulljob)
     eq_(40, len(prepared))
-    with open(counter) as f:
-        eq_(40, len(f.readlines()))
+    total, _pids = count_calls(counter)
+    eq_(40, total)
 
 
 class UnreadablePhoto(FakePhoto):
