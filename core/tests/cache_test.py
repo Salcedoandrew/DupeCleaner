@@ -149,7 +149,14 @@ class TestCaseSqliteCache(BaseTestCaseCache):
         # Same size, same restored mtime, different content: only the
         # ctime gives the replacement away, so it is stored too.
         import os
+        import sys
 
+        if sys.platform == "win32":
+            # Windows st_ctime is the creation time, which an in-place
+            # rewrite does not change, and NTFS tunneling preserves it
+            # across a delete+recreate under the same name too, so a
+            # same-path replacement is invisible to stat() there.
+            skip("ctime cannot show a same-path replacement on Windows")
         path = str(tmpdir.join("pic.jpg"))
         open(path, "wb").write(b"x" * 100)
         c = self.get_cache()

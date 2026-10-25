@@ -125,6 +125,10 @@ def test_unreadable_file_digest_is_none(tmpdir):
     eq_(None, f.digest_samples)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="NTFS tunneling preserves creation time across delete+recreate, so ctime cannot show the replacement",
+)
 def test_filesdb_cache_key_includes_ctime(tmpdir):
     # Restoring a file (cp -p, rsync -a) with different content of the same
     # size while preserving its mtime must not reuse the old file's cached
