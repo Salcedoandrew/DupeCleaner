@@ -661,8 +661,12 @@ def test_remove_dupe_paths_keeps_case_differing_files(tmpdir):
     from core.scanner import remove_dupe_paths
 
     root = Path(str(tmpdir))
-    for name in ("IMG_001.JPG", "Img_001.JPG"):
-        root.joinpath(name).write_text("data")
+    root.joinpath("IMG_001.JPG").write_text("upper")
+    root.joinpath("Img_001.JPG").write_text("mixed")
+    if root.joinpath("IMG_001.JPG").read_text() != "upper":
+        # Case-insensitive filesystem (e.g. default macOS APFS): the two
+        # names are the same file here, so there is nothing to distinguish.
+        pytest.skip("filesystem is case-insensitive")
     files = [fs.get_file(root.joinpath(n), [fs.File]) for n in ("IMG_001.JPG", "Img_001.JPG")]
     kept = remove_dupe_paths(files)
     eq_(2, len(kept))

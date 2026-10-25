@@ -22,7 +22,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        # ubuntu-24.04, not ubuntu-latest: the 3.8/3.9 interpreters in the
+        # matrix are not available on the Ubuntu 26.04 runners that
+        # ubuntu-latest now points at, so setup-python fails there.
+        os: [ubuntu-24.04]
         python-version: [3.8, 3.9, "3.10", "3.11", "3.12", "3.13", "3.14"]
         include:
           - os: windows-latest
@@ -48,7 +51,7 @@ jobs:
         run: |
           pytest core hscommon
       - name: Upload Artifacts
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-24.04'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: modules ${{ matrix.python-version }}
