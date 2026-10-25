@@ -9,13 +9,16 @@
 import difflib
 import itertools
 import logging
+import multiprocessing
 import string
 from collections import defaultdict, namedtuple
 from unicodedata import normalize
 
+from core import fs
 from hscommon.util import flatten, multi_replace
 from hscommon.trans import tr
 from hscommon.jobprogress import job
+from hscommon.jobprogress.job import JobCancelled, JobCountError
 
 (
     WEIGHT_WORDS,
@@ -279,6 +282,204 @@ def getmatches(
     return result
 
 
+# Spinning up a process pool costs time (worse in a frozen app, where
+# workers are spawned rather than forked), so small scans stay sequential:
+# the pool only pays off when there is real hashing work to spread across
+# cores. Tests monkeypatch these to force either path.
+PARALLEL_HASH_MIN_FILES = 8
+PARALLEL_HASH_MIN_BYTES = 64 * 1024 * 1024
+
+
+def _raw_digest_attr(f, attrname):
+    """Read a digest attribute without triggering its lazy computation.
+
+    ``File`` computes a digest on first read; this peeks at the stored
+    value (or NOT_SET) instead, so the pre-hash step can tell what is
+    already known without hashing anything.
+    """
+    try:
+        return object.__getattribute__(f, attrname)
+    except AttributeError:
+        return fs.NOT_SET
+
+
+def _cached_digest(f, key):
+    """Return the cached digest for ``f`` or None on a miss. Never raises:
+    the cache is a best-effort shortcut, and a failure here just means the
+    file gets hashed (or the lazy path handles it)."""
+    try:
+        return fs.filesdb.get(f.path, key)
+    except Exception:
+        return None
+
+
+def _apply_hash_results(files_by_path, results):
+    """Set computed digests on their File objects and store them in the
+    cache, in a single transaction (see ``FilesDB.put_many``: one commit
+    per digest would dominate the scan on filesystems where a commit
+    costs a full sync). Values of None (unreadable files) are set on the
+    object -- None means "unknown, do not match" -- but never written to
+    the cache."""
+    entries = []
+    for path_str, digests in results.items():
+        f = files_by_path.get(path_str)
+        if f is None:
+            continue
+        for key, value in digests.items():
+            setattr(f, key, value)
+            if value is not None:
+                entries.append((f.path, key, value))
+    if entries:
+        try:
+            fs.filesdb.put_many(entries)
+        except Exception as ex:
+            logging.warning("Couldn't store %d digests in the cache: %s", len(entries), ex)
+
+
+def _hash_tasks_sequential(tasks, j, report_progress):
+    """Hash ``tasks`` in this process, one file at a time.
+
+    A file that fails here is left unhashed instead of raising: the pair
+    loop then computes its digests lazily, exactly as it did before
+    parallel hashing existed (an unreadable file ends up with None digests
+    there).
+    """
+    results = {}
+    for index, task in enumerate(tasks):
+        try:
+            path_str, digests = fs.compute_digests_task(task)
+        except Exception as ex:
+            logging.warning("Could not hash %s (%s); leaving it for the lazy path", task[0], ex)
+            continue
+        results[path_str] = digests
+        if report_progress:
+            j.add_progress(1)
+        elif index % 64 == 63:
+            j.check_if_cancelled()
+    return results
+
+
+def _hash_tasks_parallel(tasks, j, report_progress):
+    """Hash ``tasks`` in a process pool, streaming results as they arrive."""
+    results = {}
+    done = 0
+    with multiprocessing.Pool() as pool:
+        for path_str, digests in pool.imap_unordered(fs.compute_digests_task, tasks):
+            results[path_str] = digests
+            done += 1
+            if report_progress:
+                j.add_progress(1)
+            elif done % 64 == 0:
+                j.check_if_cancelled()
+    return results
+
+
+def _run_hash_tasks(tasks, j, report_progress):
+    """Hash ``tasks`` (each a (path, size, kinds) tuple) and return
+    {path: {kind: digest}}.
+
+    Uses a process pool when there is enough work, and always falls back to
+    sequential hashing on any pool failure: the caller then still gets the
+    same digests, just slower. A failure here can never change match
+    results, because files left unhashed are computed lazily by the pair
+    loop instead.
+    """
+    if not tasks:
+        return {}
+    total_bytes = sum(size for _, size, _ in tasks)
+    if len(tasks) < PARALLEL_HASH_MIN_FILES or total_bytes < PARALLEL_HASH_MIN_BYTES:
+        return _hash_tasks_sequential(tasks, j, report_progress)
+    try:
+        return _hash_tasks_parallel(tasks, j, report_progress)
+    except JobCancelled:
+        raise
+    except Exception as ex:
+        logging.warning("Parallel hashing failed (%s); hashing sequentially instead", ex)
+        return _hash_tasks_sequential(tasks, j, report_progress)
+
+
+def _prehash_candidates(possible_matches, bigsize, j):
+    """Populate digest attributes (and the digest cache) for the candidate
+    files before the pair loop runs.
+
+    Candidates are the files in same-size groups: the only files whose
+    contents can possibly match. Digests are computed in two phases, to
+    keep the existing partial-first optimization: first the partial digest
+    of every candidate, then the full digest (and the samples digest for
+    big files) only for files that share a partial digest with another
+    file. Each phase consults the digest cache first and hashes the rest,
+    in parallel when there is enough work.
+
+    Only real files are hashed here: folders compute their digest from
+    their contents, and non-File objects (e.g. test fakes) carry pre-set
+    digests. Anything this step does not cover is left alone and hashed
+    lazily by the pair loop, exactly as before, so match results are
+    identical with or without this step.
+    """
+    hashable = [
+        f
+        for group in possible_matches
+        for f in group
+        if isinstance(f, fs.File) and not isinstance(f, fs.Folder) and f.size > 0
+    ]
+    if not hashable:
+        return
+    files_by_path = {str(f.path): f for f in hashable}
+
+    # Phase 1: partial digests. Reuse the cache; hash the rest.
+    phase1_tasks = []
+    for f in hashable:
+        if _raw_digest_attr(f, "digest_partial") is not fs.NOT_SET:
+            continue
+        cached = _cached_digest(f, "digest_partial")
+        if cached is not None:
+            f.digest_partial = cached
+            continue
+        phase1_tasks.append((str(f.path), f.size, ("digest_partial",)))
+
+    # Progress for the hashing work is its own job: the pair loop below
+    # starts another one. If the caller gave us a job with no room for a
+    # second job, hash without reporting progress (cancellation still
+    # works: it is checked while the tasks run).
+    report_progress = True
+    try:
+        j.start_job(len(phase1_tasks) + len(hashable), tr("Hashing file contents"))
+    except JobCountError:
+        report_progress = False
+    results = _run_hash_tasks(phase1_tasks, j, report_progress)
+    _apply_hash_results(files_by_path, results)
+
+    # Phase 2: full digests (and samples digests for big files), only for
+    # files that share a partial digest with another file in their group.
+    by_partial = defaultdict(list)
+    for f in hashable:
+        partial = _raw_digest_attr(f, "digest_partial")
+        if partial is not None and partial is not fs.NOT_SET:
+            by_partial[(f.size, partial)].append(f)
+    phase2_tasks = []
+    for (size, _partial), group in by_partial.items():
+        if len(group) < 2:
+            continue
+        for f in group:
+            kinds = []
+            if _raw_digest_attr(f, "digest") is fs.NOT_SET:
+                cached = _cached_digest(f, "digest")
+                if cached is not None:
+                    f.digest = cached
+                else:
+                    kinds.append("digest")
+            if bigsize > 0 and size > bigsize and _raw_digest_attr(f, "digest_samples") is fs.NOT_SET:
+                cached = _cached_digest(f, "digest_samples")
+                if cached is not None:
+                    f.digest_samples = cached
+                else:
+                    kinds.append("digest_samples")
+            if kinds:
+                phase2_tasks.append((str(f.path), size, tuple(kinds)))
+    results = _run_hash_tasks(phase2_tasks, j, report_progress)
+    _apply_hash_results(files_by_path, results)
+
+
 def getmatches_by_contents(files, bigsize=0, j=job.nulljob):
     """Returns a list of :class:`Match` within ``files`` if their contents is the same.
 
@@ -293,6 +494,11 @@ def getmatches_by_contents(files, bigsize=0, j=job.nulljob):
     possible_matches = [files for files in size2files.values() if len(files) > 1]
     del size2files
     result = []
+    # Pre-hash the candidates (populates digest attributes and the cache,
+    # in parallel when there is enough work). The pair loop below is
+    # unchanged: anything the pre-hash did not cover is hashed lazily
+    # there, exactly as before.
+    _prehash_candidates(possible_matches, bigsize, j)
     j.start_job(len(possible_matches), PROGRESS_MESSAGE % (0, 0))
     group_count = 0
     for group in possible_matches:

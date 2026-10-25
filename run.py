@@ -8,6 +8,7 @@
 import sys
 import os.path as op
 import gc
+import multiprocessing
 
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtGui import QIcon, QPixmap
@@ -47,6 +48,13 @@ def setup_signals():
 
 
 def main():
+    # Required for multiprocessing pools (used by the content scan's
+    # parallel hashing and the photo scan's block matching) in a frozen
+    # app: without it, worker processes cannot start on macOS/Windows.
+    # The `if __name__ == "__main__"` guard below keeps this safe under
+    # spawn: worker processes re-import this module as "__mp_main__", so
+    # they never reach main() or create a QApplication.
+    multiprocessing.freeze_support()
     app = QApplication(sys.argv)
     app.setDesktopFileName("dupecleaner")
     QCoreApplication.setOrganizationName("Salcedo")
