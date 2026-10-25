@@ -103,7 +103,7 @@ install: all pyc
 	mkdir -p ${DESTDIR}${PREFIX}/share/applications
 	cp -f pkg/dupecleaner.desktop ${DESTDIR}${PREFIX}/share/applications
 	mkdir -p ${DESTDIR}${PREFIX}/share/pixmaps
-	cp -f images/dgse_logo_128.png ${DESTDIR}${PREFIX}/share/pixmaps/dupecleaner.png
+	cp -f images/dupecleaner_logo_128.png ${DESTDIR}${PREFIX}/share/pixmaps/dupecleaner.png
 
 installdocs: build/help
 	mkdir -p ${DESTDIR}${PREFIX}/share/dupecleaner

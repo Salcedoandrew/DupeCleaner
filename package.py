@@ -103,7 +103,7 @@ def package_debian_distribution(distribution):
         from_version=from_version,
         distribution=distribution,
     )
-    shutil.copy(op.join("images", "dgse_logo_128.png"), srcpath)
+    shutil.copy(op.join("images", "dupecleaner_logo_128.png"), srcpath)
     os.chdir(destpath)
     cmd = "dpkg-buildpackage -F -us -uc"
     os.system(cmd)
@@ -124,7 +124,7 @@ def package_arch():
     srcpath = op.join("build", "dupecleaner-arch")
     packages = ["hscommon", "core", "qt"]
     copy_files_to_package(srcpath, packages, with_so=True)
-    shutil.copy(op.join("images", "dgse_logo_128.png"), srcpath)
+    shutil.copy(op.join("images", "dupecleaner_logo_128.png"), srcpath)
     debopts = json.load(open(op.join("pkg", "arch", "dupecleaner.json")))
     filereplace(op.join("pkg", "arch", "dupecleaner.desktop"), op.join(srcpath, "dupecleaner.desktop"), **debopts)
 
@@ -177,7 +177,7 @@ def package_windows():
             "--name=dupecleaner-win{0}".format(bits),
             "--windowed",
             "--noconfirm",
-            "--icon=images/dgse_logo.ico",
+            "--icon=images/dupecleaner_logo.ico",
             "--add-data={0};locale".format(LOCALE_DIR),
             "--add-data={0};help".format(HELP_DIR),
             "--version-file=win_version_info.txt",

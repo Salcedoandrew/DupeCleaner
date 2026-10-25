@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/dgse_logo_128.png" alt="DupeCleaner logo" width="128" />
+  <img src="images/dupecleaner_logo_128.png" alt="DupeCleaner logo" width="128" />
 </p>
 
 # DupeCleaner

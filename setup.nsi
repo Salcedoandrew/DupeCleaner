@@ -48,7 +48,7 @@ SetCompressor /SOLID lzma
 !define COMPANYNAME "Salcedo"
 !define DESCRIPTION "DupeCleaner is a tool to find duplicate files on your computer."
 !define APPLICENSE "LICENSE"           ; License is not in build directory
-!define APPICON "images\dgse_logo.ico" ; nor is the icon
+!define APPICON "images\dupecleaner_logo.ico" ; nor is the icon
 !define DISTDIR "dist"
 !define HELPURL "https://github.com/Salcedoandrew/DupeCleaner/issues"
 !define UPDATEURL "https://github.com/Salcedoandrew/DupeCleaner/"
