@@ -44,6 +44,19 @@ class InvalidPathError(Exception):
     """The path being added is invalid"""
 
 
+def _collects_plain_files(fileclasses):
+    """Whether a scan collects generic files rather than one specific kind.
+
+    A plain Standard scan accepts any file: its fileclasses use the base
+    :meth:`File.can_handle`, which only requires a non-symlink file. Photo
+    and Music scans only accept images / audio (their fileclasses override
+    ``can_handle`` with an extension check), so a package is not an item
+    for them and is skipped entirely -- it is neither a photo nor a track,
+    and yielding it as a Folder would break the photo/music matchers.
+    """
+    return all(cls.can_handle.__func__ is fs.File.can_handle.__func__ for cls in fileclasses)
+
+
 class Directories:
     """Holds user folder selection.
 
@@ -90,7 +103,9 @@ class Directories:
             return DirectoryState.EXCLUDED
         return DirectoryState.NORMAL
 
-    def _get_files(self, from_path, fileclasses, j):
+    def _get_files(self, from_path, fileclasses, j, folderclass=None):
+        if folderclass is None:
+            folderclass = fs.Folder
         try:
             with os.scandir(from_path) as iter:
                 root_path = Path(from_path)
@@ -99,6 +114,16 @@ class Directories:
                 skip_dirs = state == DirectoryState.EXCLUDED and not any(
                     p.parts[: len(root_path.parts)] == root_path.parts for p in self.states
                 )
+                if fs.is_package_dir(root_path):
+                    # The scan root itself is a package: it is one opaque
+                    # item, not a directory to descend into.
+                    if state == DirectoryState.EXCLUDED:
+                        return
+                    if _collects_plain_files(fileclasses):
+                        package = folderclass(root_path)
+                        package.is_ref = state == DirectoryState.REFERENCE
+                        yield package
+                    return
                 count = 0
                 for item in iter:
                     j.check_if_cancelled()
@@ -106,7 +131,18 @@ class Directories:
                         if item.is_dir():
                             if skip_dirs:
                                 continue
-                            yield from self._get_files(item.path, fileclasses, j)
+                            if fs.is_package_dir(item):
+                                # A macOS package is one opaque item: yield
+                                # it as a Folder and do not descend into it.
+                                # In a Photo/Music scan it is skipped
+                                # entirely (see _collects_plain_files).
+                                pkg_state = self.get_state(Path(item.path))
+                                if pkg_state != DirectoryState.EXCLUDED and _collects_plain_files(fileclasses):
+                                    package = folderclass(item)
+                                    package.is_ref = pkg_state == DirectoryState.REFERENCE
+                                    yield package
+                                continue
+                            yield from self._get_files(item.path, fileclasses, j, folderclass)
                             continue
                         elif state == DirectoryState.EXCLUDED:
                             continue
@@ -176,16 +212,20 @@ class Directories:
         except OSError:
             return []
 
-    def get_files(self, fileclasses=None, j=job.nulljob):
+    def get_files(self, fileclasses=None, j=job.nulljob, folderclass=None):
         """Returns a list of all files that are not excluded.
 
         Returned files also have their ``is_ref`` attr set if applicable.
+        A macOS package met during the walk is yielded once, as a
+        ``folderclass`` item, instead of being descended into.
         """
         if fileclasses is None:
             fileclasses = [fs.File]
+        if folderclass is None:
+            folderclass = fs.Folder
         file_count = 0
         for path in self._dirs:
-            for file in self._get_files(path, fileclasses=fileclasses, j=j):
+            for file in self._get_files(path, fileclasses=fileclasses, j=j, folderclass=folderclass):
                 file_count += 1
                 if not isinstance(j, job.NullJob):
                     j.set_progress(-1, tr("Collected {} files to scan").format(file_count))
