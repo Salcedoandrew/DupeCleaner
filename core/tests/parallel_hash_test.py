@@ -89,7 +89,8 @@ def build_tree(root):
     bigsize = 1024 * 1024
 
     def rand(n):
-        return rng.randbytes(n)
+        # Random.randbytes() is 3.9+; the test matrix still runs 3.8.
+        return rng.getrandbits(n * 8).to_bytes(n, "little")
 
     files = {}
 
@@ -250,8 +251,8 @@ def test_folder_objects_still_match_lazily(tmp_path, filesdb, force_parallel):
     for dirname in ("folder_a", "folder_b"):
         d = Path(tmp_path) / dirname
         d.mkdir()
-        (d / "one.bin").write_bytes(rng.randbytes(1024 * 1024))
-        (d / "two.bin").write_bytes(rng.randbytes(512 * 1024))
+        (d / "one.bin").write_bytes(rng.getrandbits(1024 * 1024 * 8).to_bytes(1024 * 1024, "little"))
+        (d / "two.bin").write_bytes(rng.getrandbits(512 * 1024 * 8).to_bytes(512 * 1024, "little"))
     # Make the contents identical: copy folder_a over folder_b.
     import shutil
 
