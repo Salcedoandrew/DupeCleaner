@@ -5,7 +5,7 @@ name: Build app
 
 on:
   push:
-    branches: [dupecleaner-v1]
+    branches: [master, dupecleaner-v1]
   workflow_dispatch:
 
 jobs:
@@ -33,6 +33,9 @@ jobs:
           python build.py --modules
           python build.py --loc
           python build.py --doc
+      - name: Install NSIS (Windows installer)
+        if: matrix.os == 'windows-latest'
+        run: choco install nsis -y
       - name: Package the app
         run: python package.py
       - name: Zip the macOS app
