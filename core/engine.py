@@ -14,7 +14,7 @@ import string
 from collections import defaultdict, namedtuple
 from unicodedata import normalize
 
-from core import fs
+from core import fs, volumes
 from hscommon.util import flatten, multi_replace
 from hscommon.trans import tr
 from hscommon.jobprogress import job
@@ -360,10 +360,17 @@ def _hash_tasks_sequential(tasks, j, report_progress):
 
 
 def _hash_tasks_parallel(tasks, j, report_progress):
-    """Hash ``tasks`` in a process pool, streaming results as they arrive."""
+    """Hash ``tasks`` in a process pool, streaming results as they arrive.
+
+    The pool is capped at NETWORK_VOLUME_MAX_WORKERS when the files live
+    on a network volume (see core/volumes.py): a full core count of
+    readers saturates a remote share and the scan gets slower, not
+    faster. Local disks keep the full CPU count.
+    """
     results = {}
     done = 0
-    with multiprocessing.Pool() as pool:
+    processes = volumes.pool_size_for_paths([task[0] for task in tasks], multiprocessing.cpu_count())
+    with multiprocessing.Pool(processes=processes) as pool:
         for path_str, digests in pool.imap_unordered(fs.compute_digests_task, tasks):
             results[path_str] = digests
             done += 1

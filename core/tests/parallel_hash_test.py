@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from core import engine, fs
+from core import engine, fs, volumes
 from core.engine import getmatches_by_contents
 from core.fs import File, FilesDB
 from hscommon.jobprogress.job import Job
@@ -330,6 +330,45 @@ def test_pre_hash_stores_cache_in_one_transaction(tmp_path, filesdb, force_paral
     # The batch really landed in the cache: a second scan with the pool
     # disabled finds the same matches from cached digests.
     assert all(len(c) > 0 for c in put_many_calls)
+
+
+def test_hash_pool_caps_workers_on_network_volume(tmp_path, filesdb, force_parallel, monkeypatch):
+    # Files on a network volume: the hashing pool must be capped at
+    # NETWORK_VOLUME_MAX_WORKERS (6), even on a machine with more CPUs.
+    # The scan still finds the same matches.
+    files, bigsize = build_tree(tmp_path / "tree")
+    seen = {}
+    real_pool = multiprocessing.Pool
+
+    def spy(*args, **kwargs):
+        seen.update(kwargs)
+        return real_pool(*args, **kwargs)
+
+    monkeypatch.setattr(multiprocessing, "Pool", spy)
+    monkeypatch.setattr(multiprocessing, "cpu_count", lambda: 8)
+    monkeypatch.setattr(volumes, "is_network_path", lambda path, _mount_table=None: True)
+    matches = getmatches_by_contents(list(files.values()), bigsize=bigsize)
+    eq_(sorted(match_pairs(matches)), sorted(EXPECTED_PAIRS))
+    eq_(volumes.NETWORK_VOLUME_MAX_WORKERS, seen.get("processes"))
+
+
+def test_hash_pool_uses_full_cpu_count_on_local_volume(tmp_path, filesdb, force_parallel, monkeypatch):
+    # Files on a local disk: the pool keeps the full CPU count, so the
+    # cap is a no-op for local scans.
+    files, bigsize = build_tree(tmp_path / "tree")
+    seen = {}
+    real_pool = multiprocessing.Pool
+
+    def spy(*args, **kwargs):
+        seen.update(kwargs)
+        return real_pool(*args, **kwargs)
+
+    monkeypatch.setattr(multiprocessing, "Pool", spy)
+    monkeypatch.setattr(multiprocessing, "cpu_count", lambda: 8)
+    monkeypatch.setattr(volumes, "is_network_path", lambda path, _mount_table=None: False)
+    matches = getmatches_by_contents(list(files.values()), bigsize=bigsize)
+    eq_(sorted(match_pairs(matches)), sorted(EXPECTED_PAIRS))
+    eq_(8, seen.get("processes"))
 
 
 def test_put_many_writes_all_entries(tmp_path):
