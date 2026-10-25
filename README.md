@@ -1,119 +1,105 @@
+<p align="center">
+  <img src="images/dgse_logo_128.png" alt="DupeCleaner logo" width="128" />
+</p>
+
 # DupeCleaner
 
-**DupeCleaner finds the duplicate files hiding on your computer — and helps you get rid of them safely.**
+### Find your duplicate files in minutes — and delete them safely!
 
-It's a cross-platform GUI tool for Linux, macOS, and Windows, written mostly in Python 3 with a Qt5 interface. It's built for real libraries — tens of thousands of photos and songs — not a demo folder.
+[![Default CI/CD](https://img.shields.io/github/actions/workflow/status/Salcedoandrew/DupeCleaner/default.yml?branch=master&label=tests)](https://github.com/Salcedoandrew/DupeCleaner/actions/workflows/default.yml) [![Build app](https://img.shields.io/github/actions/workflow/status/Salcedoandrew/DupeCleaner/build-app.yml?branch=master&label=build)](https://github.com/Salcedoandrew/DupeCleaner/actions/workflows/build-app.yml) [![License](https://img.shields.io/github/license/Salcedoandrew/DupeCleaner)](LICENSE) [![Top language](https://img.shields.io/github/languages/top/Salcedoandrew/DupeCleaner)](https://github.com/Salcedoandrew/DupeCleaner) [![Last commit](https://img.shields.io/github/last-commit/Salcedoandrew/DupeCleaner/master)](https://github.com/Salcedoandrew/DupeCleaner/commits/master)
 
-This is my own edition of [dupeGuru](https://github.com/arsenetar/dupeguru) by Hardcoded Software, with the delete engine hardened: files are re-checked before they're deleted, big files are matched on their full contents (not just samples), and photo matching handles rotated phone photos.
+About | Modes | Technologies | Requirements | Starting | Scripts | License
 
-## What it finds
+## 🎯 About
+
+Tired of duplicate files eating your disk? 😩 Same photo saved three times, the same song in two folders, installers you forgot you downloaded? Say no more! 💪
+
+**DupeCleaner finds the duplicates hiding on your computer — and helps you get rid of them safely.** ✨ It's a cross-platform GUI tool for Linux, macOS, and Windows, written mostly in Python 3 with a Qt5 interface. It's built for real libraries — tens of thousands of photos and songs — not a demo folder.
+
+This is my own edition of [dupeGuru](https://github.com/arsenetar/dupeguru) by Hardcoded Software, with the delete engine hardened: files are re-checked before they're deleted, big files are matched on their full contents (not just samples), and photo matching handles rotated phone photos. 🚀
+
+**Don't let duplicates pile up.** Give it a try and see how fast your library gets clean! 😉
+
+## 🔍 Modes
 
 * **Standard mode** — scans filenames or file contents. The filename scan uses fuzzy matching, so it finds duplicates even when the names aren't exactly the same.
-* **Music mode** — scans audio tags and shows music-specific info (artist, album, bitrate, …) in the results, so you can tell versions apart.
-* **Picture mode** — scans pictures fuzzily, so it finds photos that are similar but not exactly the same: different sizes, recompressed copies, rotated shots.
+* **Music mode** 🎵 — scans audio tags and shows music-specific info (artist, album, bitrate, …) in the results, so you can tell versions apart.
+* **Picture mode** 🖼️ — scans pictures fuzzily, so it finds photos that are similar but not exactly the same: different sizes, recompressed copies, rotated shots.
 
-## Why use it
+## ✨ Why use it
 
-* **Fast.** The fuzzy matching engine finds duplicates in minutes, even across a big library.
-* **Customizable.** Tweak the matching engine to find exactly the kind of duplicates you want. Every scanning setting is listed on the Preference page of the help file.
-* **Safe.** The engine was designed with safety in mind: the reference-directory system and the grouping system keep you from deleting files you didn't mean to delete. And before anything is deleted, the file is re-checked to make sure it hasn't changed since the scan.
-* **Flexible.** Delete duplicates, or move or copy them elsewhere instead. Filter and sort the results to weed out false positives, especially on low-threshold scans.
+* **Fast.** ⚡ The fuzzy matching engine finds duplicates in minutes, even across a big library.
+* **Customizable.** 🛠️ Tweak the matching engine to find exactly the kind of duplicates you want. Every scanning setting is listed on the Preference page of the help file.
+* **Safe.** 🔒 The reference-directory system and the grouping system keep you from deleting files you didn't mean to delete. And before anything is deleted, the file is re-checked to make sure it hasn't changed since the scan.
+* **Flexible.** 🔀 Delete duplicates, or move or copy them elsewhere instead. Filter and sort the results to weed out false positives, especially on low-threshold scans.
 
-## Languages
+## 🌍 Languages
 
 English, French, German, Chinese (Simplified), Czech, Italian, Armenian, Russian, Ukrainian, Brazilian Portuguese, Vietnamese.
 
-## Current status
-Still looking for additional help especially with regards to:
-* OSX maintenance: reproducing bugs, packaging verification.
-* Linux maintenance: reproducing bugs, maintaining PPA repository, Debian package, rpm package.
-* Translations: strings live in `locale/`; new translations are welcome via pull request.
-* Documentation: keeping it up-to-date.
+## 🚀 Main Technologies
 
-## Contents of this folder
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) ![Qt](https://img.shields.io/badge/Qt-41CD52?logo=qt&logoColor=white) ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white) ![PyInstaller](https://img.shields.io/badge/PyInstaller-8A2BE2?logo=pyinstaller&logoColor=white)
 
-This folder contains the source for DupeCleaner. Its documentation is in `help`, but is also
-[available online][documentation] in its built form. Here's how this source tree is organized:
+**See more**
 
-* core: Contains the core logic code for DupeCleaner. It's Python code.
-* qt: UI code for the Qt toolkit. It's written in Python and uses PyQt.
-* images: Images used by the different UI codebases.
-* pkg: Skeleton files required to create different packages
-* help: Help document, written for Sphinx.
-* locale: .po files for localization.
-* hscommon: A collection of helpers used across HS applications.
+- [PyQt5](https://riverbankcomputing.com/software/pyqt/) — the Qt5 UI toolkit
+- [xxhash](https://github.com/Cyan4973/xxHash) — fast file hashing
+- [mutagen](https://mutagen.readthedocs.io/) — audio tag reading for Music mode
+- [Send2Trash](https://github.com/arsenetar/send2trash) — safe deletion to the recycle bin
 
-## How to build DupeCleaner from source
+## ✅ Requirements
 
-GitHub Actions also builds the macOS and Windows apps on every push — see the Actions tab for the latest artifacts.
+Before starting 🏁, make sure you have [Python 3.7+](https://www.python.org/) and [PyQt5](https://riverbankcomputing.com/software/pyqt/) installed on your system.
 
-### Windows & macOS specific additional instructions
-For windows instructions see the [Windows Instructions](Windows.md).
+On Linux you also need the system packages to build: `python3-pyqt5`, `pyqt5-dev-tools` (on some systems), `python3-venv`, `python3-dev`, `build-essential`. To create packages you also need `python3-setuptools` and `debhelper`.
 
-For macos instructions (qt version) see the [macOS Instructions](macos.md).
+## ⬇️ Download
 
-### Prerequisites
-* [Python 3.7+][python]
-* PyQt5
+Don't want to build it yourself? GitHub Actions builds the macOS and Windows apps on every push to `master` — grab the latest from the [Build app workflow](https://github.com/Salcedoandrew/DupeCleaner/actions/workflows/build-app.yml) (`dupecleaner-macos` and `dupecleaner-windows` artifacts).
 
-### System Setup
-When running in a linux based environment the following system packages or equivalents are needed to build:
-* python3-pyqt5
-* pyqt5-dev-tools (on some systems, see note)
-* python3-venv (only if using a virtual environment)
-* python3-dev
-* build-essential
+The Mac app is unsigned, so open it with right-click → Open the first time.
 
-Note: On some linux systems pyrcc5 is not put on the path when installing python3-pyqt5, this will cause some issues with the resource files (and icons). These systems should have a respective pyqt5-dev-tools package, which should also be installed. The presence of pyrcc5 can be checked with `which pyrcc5`.  Debian based systems need the extra package, and Arch does not.
+## 🏁 Starting
 
-To create packages the following are also needed:
-* python3-setuptools
-* debhelper
+```
+# Clone this project
+$ git clone https://github.com/Salcedoandrew/DupeCleaner
+$ cd DupeCleaner
 
-### Building with Make
-DupeCleaner comes with a makefile that can be used to build and run:
+# Set up a virtual environment
+$ python3 -m venv --system-site-packages ./env
+$ source ./env/bin/activate
 
-    $ make && make run
+# Install dependencies
+$ pip install -r requirements.txt
 
-### Building without Make
+# Build and run
+$ python build.py
+$ python run.py
+```
 
-    $ cd <DupeCleaner directory>
-    $ python3 -m venv --system-site-packages ./env
-    $ source ./env/bin/activate
-    $ pip install -r requirements.txt
-    $ python build.py
-    $ python run.py
+Or build and run in one go with Make:
 
-### Generating Debian/Ubuntu package
-To generate packages the extra requirements in requirements-extra.txt must be installed, the
-steps are as follows:
+```
+$ make && make run
+```
 
-    $ cd <DupeCleaner directory>
-    $ python3 -m venv --system-site-packages ./env
-    $ source ./env/bin/activate
-    $ pip install -r requirements.txt -r requirements-extra.txt
-    $ python build.py --clean
-    $ python package.py
+For Windows instructions see the [Windows Instructions](Windows.md). For macOS instructions (Qt version) see the [macOS Instructions](macos.md).
 
-This can be made a one-liner (once in the directory) as:
+## 🎮 Scripts
 
-    $ bash -c "python3 -m venv --system-site-packages env && source env/bin/activate && pip install -r requirements.txt -r requirements-extra.txt && python build.py --clean && python package.py"
+- `make` / `make run`: builds the app and runs it;
+- `python build.py --modules`: builds the C extensions;
+- `python build.py --loc`: builds the translations;
+- `python build.py --doc`: builds the help files;
+- `python package.py`: packages the app (macOS `.app`, Windows installer, Debian/Arch package — install `requirements-extra.txt` first);
+- `pytest core hscommon`: runs the test suite (install `requirements-extra.txt` first, or run `tox`).
 
-## Running tests
+## 📝 License
 
-The complete test suite is run with [Tox 1.7+][tox]. If you have it installed system-wide, you
-don't even need to set up a virtualenv. Just `cd` into the root project folder and run `tox`.
+This project is licensed under the GPLv3 License. For more details, please refer to the [LICENSE](LICENSE) file.
 
-If you don't have Tox system-wide, install it in your virtualenv with `pip install tox` and then
-run `tox`.
+Made with ❤️ by [Andrew Salcedo](https://github.com/Salcedoandrew)
 
-You can also run automated tests without Tox. Extra requirements for running tests are in
-`requirements-extra.txt`. So, you can do `pip install -r requirements-extra.txt` inside your
-virtualenv and then `py.test core hscommon`
-
-[dupecleaner]: https://github.com/Salcedoandrew/DupeCleaner/
-[cross-toolkit]: http://www.hardcoded.net/articles/cross-toolkit-software
-[documentation]: https://github.com/Salcedoandrew/DupeCleaner/tree/main/help/en/
-[python]: http://www.python.org/
-[pyqt]: http://www.riverbankcomputing.com
-[tox]: https://tox.readthedocs.org/en/latest/
+[Back to top](#dupecleaner)
