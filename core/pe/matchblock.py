@@ -9,6 +9,7 @@
 import logging
 import multiprocessing
 from itertools import combinations
+from pathlib import Path
 
 from hscommon.util import extract, iterconsume
 from hscommon.trans import tr
@@ -38,6 +39,14 @@ BLOCK_COUNT_PER_SIDE = 15
 DEFAULT_CHUNK_SIZE = 1000
 MIN_CHUNK_SIZE = 100
 
+# Minimum number of pictures that need computing before starting a process
+# pool for preparation is worth it. Spawning workers re-execs the
+# interpreter and imports Qt in each worker (the default start method on
+# macOS, and the only safe one here: forking a process that has already
+# used Qt deadlocks), which costs a second or two; below this count the
+# sequential loop is faster.
+MIN_PICTURES_FOR_PARALLEL_PREP = 32
+
 # Enough so that we're sure that the main thread will not wait after a result.get() call
 # cpucount+1 should be enough to be sure that the spawned process will not wait after the results
 # collection made by the main process.
@@ -54,6 +63,140 @@ def get_cache(cache_path, readonly=False):
     return SqliteCache(cache_path, readonly=readonly)
 
 
+def _compute_blocks(photo, match_rotated):
+    """Compute the 8-slot block list for one photo, exactly as stored in the cache."""
+    if match_rotated:
+        return [photo.get_blocks(BLOCK_COUNT_PER_SIDE, orientation) for orientation in range(1, 9)]
+    # get_blocks() already returns the orientation-corrected blocks, and the
+    # comparison in async_compare() only ever reads slot 0. Storing them in
+    # slot (orientation - 1) left slot 0 empty for any photo with an EXIF
+    # orientation of 2-8, so those photos never matched at all in the
+    # default scan.
+    blocks = [[]] * 8
+    blocks[0] = photo.get_blocks(BLOCK_COUNT_PER_SIDE)
+    return blocks
+
+
+def _prepare_picture_task(task):
+    """Compute the dimensions and blocks for one picture in a worker process.
+
+    ``task`` is (photo_cls, path, match_rotated, with_dimensions). The photo
+    class is passed by reference: a spawned worker does not inherit
+    ``core.pe.photo.PLAT_SPECIFIC_PHOTO_CLASS`` (the Qt app module that sets
+    it never runs in the child), so the worker could not know which class to
+    build. Returns (dimensions, blocks, error) where error is None or
+    ("error", message) for OSError/ValueError, or ("memory", "") for
+    MemoryError. The parent applies the same handling as the sequential
+    loop.
+    """
+    photo_cls, path_str, match_rotated, with_dimensions = task
+    try:
+        photo = photo_cls(Path(path_str))
+        dimensions = photo.dimensions if with_dimensions else None
+        blocks = _compute_blocks(photo, match_rotated)
+        return (dimensions, blocks, None)
+    except (OSError, ValueError) as e:
+        return (None, None, ("error", str(e)))
+    except MemoryError:
+        return (None, None, ("memory", ""))
+
+
+class _PoolFailed(Exception):
+    """The preparation pool broke unexpectedly; fall back to sequential.
+
+    ``processed_count`` is how many pictures were fully accounted for, so
+    the caller can resume the sequential loop at the right place.
+    """
+
+    def __init__(self, processed_count):
+        super().__init__("picture preparation pool failed")
+        self.processed_count = processed_count
+
+
+def _prepare_in_parallel(to_compute, cache, match_rotated, with_dimensions, tick):
+    """Compute blocks for ``to_compute`` (a list of (index, picture)) in a pool.
+
+    Results are consumed in input order, so the observable outcome is the
+    same as the sequential loop: cache writes and the ``prepared`` list
+    happen in input order, and a fatal MemoryError stops everything after
+    it. Returns the set of indices that were successfully prepared. Raises
+    MemoryError to abort the whole preparation, or _PoolFailed to fall back
+    to sequential for the pictures that were not accounted for yet.
+    ``tick`` is called once per picture accounted for.
+    """
+    tasks = [(type(picture), picture.unicode_path, match_rotated, with_dimensions) for _, picture in to_compute]
+    pool = None
+    prepared_indices = set()
+    processed = 0
+    try:
+        # Spawn, not fork: a forked worker inherits the parent's Qt state,
+        # and using QImage in it deadlocks (verified: a fork pool hangs as
+        # soon as the parent has decoded an image first). Spawn is the
+        # default on macOS anyway, so the frozen app behaves the same as
+        # the comparison pool there.
+        pool = multiprocessing.get_context("spawn").Pool()
+        for pos, (dimensions, blocks, error) in enumerate(pool.imap(_prepare_picture_task, tasks)):
+            index, picture = to_compute[pos]
+            if error is None:
+                if with_dimensions:
+                    picture.dimensions = dimensions
+                cache[picture.unicode_path] = blocks
+                prepared_indices.add(index)
+            elif error[0] == "memory":
+                logging.warning(
+                    "Ran out of memory while reading %s of size %d",
+                    picture.unicode_path,
+                    picture.size,
+                )
+                if picture.size < 10 * 1024 * 1024:  # We're really running out of memory
+                    raise MemoryError("Ran out of memory while reading %s" % picture.unicode_path)
+                # A big picture: skip it and carry on, as the sequential loop does.
+            else:
+                logging.warning(error[1])
+            tick()
+            processed = pos + 1
+    except (MemoryError, job.JobCancelled):
+        if pool is not None:
+            pool.terminate()
+            pool.join()
+        raise
+    except Exception as e:
+        if pool is not None:
+            pool.terminate()
+            pool.join()
+        raise _PoolFailed(processed) from e
+    pool.close()
+    pool.join()
+    return prepared_indices
+
+
+def _prepare_sequentially(to_compute, cache, match_rotated, with_dimensions, tick):
+    """Compute blocks for ``to_compute`` in-process, as the original loop did.
+
+    Returns the set of indices that were successfully prepared. Raises
+    MemoryError to abort the whole preparation.
+    """
+    prepared_indices = set()
+    for index, picture in to_compute:
+        try:
+            if with_dimensions:
+                picture.dimensions  # pre-read dimensions
+            cache[picture.unicode_path] = _compute_blocks(picture, match_rotated)
+            prepared_indices.add(index)
+        except (OSError, ValueError) as e:
+            logging.warning(str(e))
+        except MemoryError:
+            logging.warning(
+                "Ran out of memory while reading %s of size %d",
+                picture.unicode_path,
+                picture.size,
+            )
+            if picture.size < 10 * 1024 * 1024:  # We're really running out of memory
+                raise
+        tick()
+    return prepared_indices
+
+
 def prepare_pictures(pictures, cache_path, with_dimensions, match_rotated, j=job.nulljob):
     # The MemoryError handlers in there use logging without first caring about whether or not
     # there is enough memory left to carry on the operation because it is assumed that the
@@ -63,7 +206,24 @@ def prepare_pictures(pictures, cache_path, with_dimensions, match_rotated, j=job
     cache.purge_outdated()
     prepared = []  # only pictures for which there was no error getting blocks
     try:
-        for picture in j.iter_with_progress(pictures, tr("Analyzed %d/%d pictures")):
+        total = len(pictures)
+        j.start_job(total, tr("Analyzed %d/%d pictures") % (0, total))
+        done = [0]
+
+        def tick():
+            # Same progress reporting as the old j.iter_with_progress loop:
+            # one tick per picture, in input order.
+            done[0] += 1
+            j.add_progress(1, tr("Analyzed %d/%d pictures") % (done[0], total))
+
+        # First pass (parent process only): the cache check and the
+        # dimensions pre-read for pictures that are already cached. Only
+        # pictures that actually need computing go to the workers; all
+        # cache access stays here because SqliteCache is a single
+        # connection and must not be shared with worker processes.
+        prepared_indices = set()
+        to_compute = []
+        for index, picture in enumerate(pictures):
             if not picture.path:
                 # XXX Find the root cause of this. I've received reports of crashes where we had
                 # "Analyzing picture at " (without a path) in the debug log. It was an iPhoto scan.
@@ -71,37 +231,39 @@ def prepare_pictures(pictures, cache_path, with_dimensions, match_rotated, j=job
                 # interesting to know exactly why this happens. I'm suspecting a malformed
                 # entry in iPhoto library.
                 logging.warning("We have a picture with a null path here")
+                tick()
                 continue
             logging.debug("Analyzing picture at %s", picture.unicode_path)
-            if with_dimensions:
-                picture.dimensions  # pre-read dimensions
             try:
-                if picture.unicode_path not in cache or (
+                needs_compute = picture.unicode_path not in cache or (
                     match_rotated and any(block == [] for block in cache[picture.unicode_path])
-                ):
-                    if match_rotated:
-                        blocks = [picture.get_blocks(BLOCK_COUNT_PER_SIDE, orientation) for orientation in range(1, 9)]
-                    else:
-                        # get_blocks() already returns the orientation-corrected
-                        # blocks, and the comparison in async_compare() only
-                        # ever reads slot 0. Storing them in slot
-                        # (orientation - 1) left slot 0 empty for any photo
-                        # with an EXIF orientation of 2-8, so those photos
-                        # never matched at all in the default scan.
-                        blocks = [[]] * 8
-                        blocks[0] = picture.get_blocks(BLOCK_COUNT_PER_SIDE)
-                    cache[picture.unicode_path] = blocks
-                prepared.append(picture)
+                )
             except (OSError, ValueError) as e:
                 logging.warning(str(e))
-            except MemoryError:
-                logging.warning(
-                    "Ran out of memory while reading %s of size %d",
-                    picture.unicode_path,
-                    picture.size,
-                )
-                if picture.size < 10 * 1024 * 1024:  # We're really running out of memory
-                    raise
+                tick()
+                continue
+            if needs_compute:
+                to_compute.append((index, picture))
+            else:
+                if with_dimensions:
+                    picture.dimensions  # pre-read dimensions
+                prepared_indices.add(index)
+                tick()
+        if to_compute:
+            if len(to_compute) >= MIN_PICTURES_FOR_PARALLEL_PREP:
+                try:
+                    prepared_indices |= _prepare_in_parallel(to_compute, cache, match_rotated, with_dimensions, tick)
+                except _PoolFailed as e:
+                    logging.warning("Parallel picture preparation failed, falling back to sequential")
+                    prepared_indices |= _prepare_sequentially(
+                        to_compute[e.processed_count :], cache, match_rotated, with_dimensions, tick
+                    )
+            else:
+                prepared_indices |= _prepare_sequentially(to_compute, cache, match_rotated, with_dimensions, tick)
+        # Rebuild the prepared list in input order: the order feeds the
+        # chunking downstream, so it must not change.
+        prepared = [pictures[i] for i in sorted(prepared_indices)]
+        j.set_progress(100, tr("Analyzed %d/%d pictures") % (total, total))
     except MemoryError:
         logging.warning("Ran out of memory while preparing pictures")
     cache.close()

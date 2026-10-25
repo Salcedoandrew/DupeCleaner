@@ -33,6 +33,23 @@ This is my own edition of [dupeGuru](https://github.com/arsenetar/dupeguru) by H
 * **Safe.** 🔒 The reference-directory system and the grouping system keep you from deleting files you didn't mean to delete. And before anything is deleted, the file is re-checked to make sure it hasn't changed since the scan.
 * **Flexible.** 🔀 Delete duplicates, or move or copy them elsewhere instead. Filter and sort the results to weed out false positives, especially on low-threshold scans.
 
+## 🗺️ Roadmap
+
+Planned features, roughly in priority order. Ideas welcome — open an issue to suggest one.
+
+- [ ] **Faster scans** — parallel hashing for Standard mode and parallel photo preparation for Picture mode. *(in progress)*
+- [ ] **NAS-aware scanning** — detect network volumes and cap parallel workers, so scans over a NAS don't thrash. *(next, after faster scans)*
+- [ ] **macOS packages as single items** — `.app` bundles and other packages are fingerprinted as a whole instead of scanning every file inside them. *(next)*
+- [ ] **Big Files finder** — list the largest files in a location. *(easy)*
+- [ ] **Empty Files finder** — list zero-byte files. *(easy)*
+- [ ] **Empty Folders finder** — list folders that are empty, including ones that only contain empty folders. *(easy)*
+- [ ] **Bad Extensions checker** — flag files whose contents don't match their extension. *(medium)*
+- [ ] **Broken Files finder** — flag photos and audio that fail to decode. *(medium)*
+- [ ] **Folder priority** — give a folder a priority so its files are always kept over duplicates elsewhere. *(medium)*
+- [ ] **File-type filter per scan** — scan only certain file types, or exclude some. *(medium)*
+- [ ] **Operation History** — keep a record of past cleanups: what was deleted and how much space came back. *(easy-medium)*
+- [ ] **Similar Videos** — find near-duplicate videos by comparing frames. *(hard — needs ffmpeg)*
+
 ## 🌍 Languages
 
 English, French, German, Chinese (Simplified), Czech, Italian, Armenian, Russian, Ukrainian, Brazilian Portuguese, Vietnamese.

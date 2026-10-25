@@ -59,6 +59,101 @@ MIN_FILE_SIZE = 3 * CHUNK_SIZE  # 3MiB, because we take 3 samples
 PARTIAL_OFFSET_SIZE = (0x4000, 0x4000)
 
 
+def _hash_full(path):
+    """Hash a whole file, reading it in 1 MiB chunks."""
+    with open(path, "rb") as fp:
+        file_hash = hasher()
+        # The goal here is to not run out of memory on really big files. However, the chunk
+        # size has to be large enough so that the python loop isn't too costly in terms of
+        # CPU.
+        filedata = fp.read(CHUNK_SIZE)
+        while filedata:
+            file_hash.update(filedata)
+            filedata = fp.read(CHUNK_SIZE)
+        return file_hash.digest()
+
+
+def _hash_partial(path):
+    """Hash the 16 KiB chunk at offset 16 KiB (the partial digest)."""
+    with open(path, "rb") as fp:
+        fp.seek(PARTIAL_OFFSET_SIZE[0])
+        partial_data = fp.read(PARTIAL_OFFSET_SIZE[1])
+        return hasher(partial_data).digest()
+
+
+def _hash_samples(path, size):
+    """Hash the 3x1 MiB samples used as a pre-filter for big files."""
+    with open(path, "rb") as fp:
+        # Chunk at 25% of the file
+        fp.seek(floor(size * 25 / 100), 0)
+        file_data = fp.read(CHUNK_SIZE)
+        file_hash = hasher(file_data)
+
+        # Chunk at 60% of the file
+        fp.seek(floor(size * 60 / 100), 0)
+        file_data = fp.read(CHUNK_SIZE)
+        file_hash.update(file_data)
+
+        # Last chunk of the file
+        fp.seek(-CHUNK_SIZE, 2)
+        file_data = fp.read(CHUNK_SIZE)
+        file_hash.update(file_data)
+        return file_hash.digest()
+
+
+def compute_digests_task(task):
+    """Compute digests for one file. This is the worker function for parallel
+    hashing: it must be module-level (so it can be pickled to a worker
+    process) and it must only take and return plain data.
+
+    ``task`` is a (path, size, kinds) tuple: the file path as a string, its
+    size in bytes, and the digest kinds to compute (a subset of
+    "digest_partial", "digest" and "digest_samples"). Returns
+    (path, {kind: digest}), where a digest is None when the file could not
+    be read -- None means "unknown, do not match", exactly like the lazy
+    path in ``File._read_info``. The worker never touches ``filesdb``: all
+    cache reads and writes happen in the parent process.
+
+    This mirrors the small-file rules of ``File._read_info``: a file too
+    small for a partial digest uses its full digest as the partial, and a
+    file no bigger than MIN_FILE_SIZE uses its full digest as the samples
+    digest. The full digest is computed at most once per task, and every
+    digest derived from it is returned along with the requested ones.
+    """
+    path_str, size, kinds = task
+    path = Path(path_str)
+    result = {}
+    # The full digest is needed directly, or as the stand-in for the partial
+    # / samples digest of a small file (see File._read_info).
+    needs_full = (
+        "digest" in kinds
+        or ("digest_partial" in kinds and size < PARTIAL_OFFSET_SIZE[0] + PARTIAL_OFFSET_SIZE[1])
+        or ("digest_samples" in kinds and size <= MIN_FILE_SIZE)
+    )
+    try:
+        full = _hash_full(path) if needs_full else None
+    except OSError:
+        # Nothing could be read: every requested digest is unknown.
+        return (path_str, {kind: None for kind in kinds})
+    if full is not None:
+        result["digest"] = full
+        if size < PARTIAL_OFFSET_SIZE[0] + PARTIAL_OFFSET_SIZE[1]:
+            result["digest_partial"] = full
+        if size <= MIN_FILE_SIZE:
+            result["digest_samples"] = full
+    if "digest_partial" in kinds and "digest_partial" not in result:
+        try:
+            result["digest_partial"] = _hash_partial(path)
+        except OSError:
+            result["digest_partial"] = None
+    if "digest_samples" in kinds and "digest_samples" not in result:
+        try:
+            result["digest_samples"] = _hash_samples(path, size)
+        except OSError:
+            result["digest_samples"] = None
+    return (path_str, result)
+
+
 class FSError(Exception):
     cls_message = "An error has occured on '{name}' in '{parent}'"
 
@@ -185,11 +280,15 @@ class FilesDB:
         return None
 
     def put(self, path: Path, key: str, value: Any) -> None:
-        stat = path.stat()
-        size = stat.st_size
-        mtime_ns = stat.st_mtime_ns
-        ctime_ns = stat.st_ctime_ns
+        # The stat is inside the try on purpose: a file that vanished
+        # between hashing and caching must warn, not raise -- put_many's
+        # fallback relies on put never raising.
+        size = mtime_ns = None
         try:
+            stat = path.stat()
+            size = stat.st_size
+            mtime_ns = stat.st_mtime_ns
+            ctime_ns = stat.st_ctime_ns
             with self.lock, self.conn as conn:
                 conn.execute(
                     self.insert_query.format(key=key),
@@ -197,6 +296,48 @@ class FilesDB:
                 )
         except Exception as ex:
             logging.warning(f"Couldn't put {key} for {path} w/{size}, {mtime_ns}: {ex}")
+
+    def put_many(self, entries) -> None:
+        """Store several (path, key, value) digests in a single transaction.
+
+        The stored rows are exactly the ones :meth:`put` would write for
+        the same entries, but there is one commit instead of one per entry.
+        That matters because a commit costs a full sync, which is tens of
+        milliseconds on some filesystems: a scan that stores hundreds of
+        digests one by one spends most of its time waiting on the disk,
+        not hashing. Never raises: on any failure it falls back to one
+        :meth:`put` per entry, which logs its own warning per entry as
+        before.
+        """
+        entries = list(entries)
+        if not entries:
+            return
+        try:
+            rows = []
+            for path, key, value in entries:
+                try:
+                    stat = path.stat()
+                except Exception as ex:
+                    # A file that vanished between hashing and caching
+                    # must not lose the rest of the batch.
+                    logging.warning(f"Couldn't put {key} for {path}: {ex}")
+                    continue
+                rows.append((key, str(path), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns, value))
+            with self.lock, self.conn as conn:
+                for key, path_str, size, mtime_ns, ctime_ns, value in rows:
+                    conn.execute(
+                        self.insert_query.format(key=key),
+                        {
+                            "path": path_str,
+                            "size": size,
+                            "mtime_ns": mtime_ns,
+                            "ctime_ns": ctime_ns,
+                            "value": value,
+                        },
+                    )
+        except Exception:
+            for path, key, value in entries:
+                self.put(path, key, value)
 
     def commit(self) -> None:
         with self.lock:
@@ -256,44 +397,14 @@ class File:
 
     def _calc_digest(self):
         # type: () -> bytes
-
-        with self.path.open("rb") as fp:
-            file_hash = hasher()
-            # The goal here is to not run out of memory on really big files. However, the chunk
-            # size has to be large enough so that the python loop isn't too costly in terms of
-            # CPU.
-            CHUNK_SIZE = 1024 * 1024  # 1 mb
-            filedata = fp.read(CHUNK_SIZE)
-            while filedata:
-                file_hash.update(filedata)
-                filedata = fp.read(CHUNK_SIZE)
-            return file_hash.digest()
+        return _hash_full(self.path)
 
     def _calc_digest_partial(self):
         # type: () -> bytes
-        with self.path.open("rb") as fp:
-            fp.seek(PARTIAL_OFFSET_SIZE[0])
-            partial_data = fp.read(PARTIAL_OFFSET_SIZE[1])
-            return hasher(partial_data).digest()
+        return _hash_partial(self.path)
 
     def _calc_digest_samples(self) -> bytes:
-        size = self.size
-        with self.path.open("rb") as fp:
-            # Chunk at 25% of the file
-            fp.seek(floor(size * 25 / 100), 0)
-            file_data = fp.read(CHUNK_SIZE)
-            file_hash = hasher(file_data)
-
-            # Chunk at 60% of the file
-            fp.seek(floor(size * 60 / 100), 0)
-            file_data = fp.read(CHUNK_SIZE)
-            file_hash.update(file_data)
-
-            # Last chunk of the file
-            fp.seek(-CHUNK_SIZE, 2)
-            file_data = fp.read(CHUNK_SIZE)
-            file_hash.update(file_data)
-            return file_hash.digest()
+        return _hash_samples(self.path, self.size)
 
     def _read_info(self, field):
         # print(f"_read_info({field}) for {self}")

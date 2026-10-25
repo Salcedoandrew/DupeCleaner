@@ -161,6 +161,7 @@ class DupeCleaner(QObject):
         self.model.options["ignore_hardlink_matches"] = self.prefs.ignore_hardlink_matches
         self.model.options["copymove_dest_type"] = self.prefs.destination_type
         self.model.options["scan_type"] = self.prefs.get_scan_type(self.model.app_mode)
+        self.model.options["keep_rule"] = self.prefs.keep_rule
         self.model.options["min_match_percentage"] = self.prefs.filter_hardness
         self.model.options["word_weighting"] = self.prefs.word_weighting
         self.model.options["match_similar_words"] = self.prefs.match_similar

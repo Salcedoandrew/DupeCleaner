@@ -530,6 +530,59 @@ def test_tie_breaker_copy(fake_fileexists):
     assert group.ref is o2
 
 
+def test_tie_breaker_backup(fake_fileexists):
+    # "backup" in a name counts like "copy": the backup is the dupe, even on a deeper path
+    s = Scanner()
+    o1, o2 = no("foo bar backup"), no("foo bar")
+    o1.path = Path("deeper/path")
+    o2.path = Path("foo")
+    [group] = s.get_dupe_groups([o1, o2])
+    assert group.ref is o2
+
+
+def test_keep_rule_default_is_largest(fake_fileexists):
+    # By default, the biggest file is kept, even if it isn't the newest
+    s = Scanner()
+    o1, o2 = no("foo", size=10, path="p1"), no("foo", size=5, path="p2")
+    o1.mtime = 300
+    o2.mtime = 100
+    [group] = s.get_dupe_groups([o1, o2])
+    assert group.ref is o1
+
+
+def test_keep_rule_newest(fake_fileexists):
+    s = Scanner()
+    s.keep_rule = "newest"
+    o1, o2 = no("foo", path="p1"), no("foo", path="p2")
+    o1.mtime = 100
+    o2.mtime = 300
+    [group] = s.get_dupe_groups([o1, o2])
+    assert group.ref is o2
+
+
+def test_keep_rule_oldest(fake_fileexists):
+    s = Scanner()
+    s.keep_rule = "oldest"
+    o1, o2 = no("foo", path="p1"), no("foo", path="p2")
+    o1.mtime = 100
+    o2.mtime = 300
+    [group] = s.get_dupe_groups([o1, o2])
+    assert group.ref is o1
+
+
+def test_keep_rule_newest_music(fake_fileexists):
+    # In Music mode, the keep rule overrides the bitrate-first default
+    s = ScannerME()
+    s.keep_rule = "newest"
+    o1, o2 = no("foo", path="p1"), no("foo", path="p2")
+    o1.bitrate = 320
+    o2.bitrate = 128
+    o1.mtime = 100
+    o2.mtime = 300
+    [group] = s.get_dupe_groups([o1, o2])
+    assert group.ref is o2
+
+
 def test_tie_breaker_same_name_plus_digit(fake_fileexists):
     # if ref has the same words as dupe, but has some just one extra word which is a digit, it
     # becomes a dupe
