@@ -38,6 +38,8 @@ __all__ = [
     "Folder",
     "get_file",
     "get_files",
+    "is_package_dir",
+    "PACKAGE_EXTENSIONS",
     "FSError",
     "AlreadyExistsError",
     "InvalidPath",
@@ -152,6 +154,149 @@ def compute_digests_task(task):
         except OSError:
             result["digest_samples"] = None
     return (path_str, result)
+
+
+# --- macOS packages -------------------------------------------------------
+# A macOS "package" (or bundle) is a directory the Finder presents as a
+# single file -- an .app, a .pkg installer, a .framework, and so on. When
+# DupeCleaner scans a folder full of them (an Applications folder, for
+# example), descending into every bundle explodes the scan into thousands
+# of tiny interior files. Instead a package is treated as one opaque item:
+# a Folder whose size is the total size of its contents and whose digest
+# is a fingerprint of its interior tree (see _package_fingerprint).
+
+# Directory extensions macOS treats as packages. This list is the common
+# bundle types; it is deliberately not exhaustive -- on macOS a directory
+# with the Finder package bit set is a package whatever its name is.
+PACKAGE_EXTENSIONS = frozenset(
+    {
+        ".action",
+        ".app",
+        ".appex",
+        ".bundle",
+        ".component",
+        ".docset",
+        ".framework",
+        ".kext",
+        ".mdimporter",
+        ".mpkg",
+        ".pkg",
+        ".plugin",
+        ".prefpane",
+        ".qlgenerator",
+        ".saver",
+        ".service",
+        ".wdgt",
+        ".xpc",
+    }
+)
+
+# kHasBundle in the Finder flags (bytes 8-9, big-endian, of the 32-byte
+# com.apple.FinderInfo xattr): the bit the Finder sets on a directory it
+# treats as a package.
+_FINDER_PACKAGE_BIT = 0x2000
+
+
+def is_package_dir(path):
+    """Return True if ``path`` is a directory macOS treats as a package.
+
+    ``path`` is a :class:`pathlib.Path` or an :class:`os.DirEntry`. A
+    directory counts when its extension is a known bundle extension, or --
+    on macOS only -- when the Finder package bit is set. Symlinks are never
+    packages (scans exclude symlinks everywhere), and neither are plain
+    files, even if their name ends in a bundle extension. Never raises:
+    anything unreadable simply is not a package.
+    """
+    try:
+        if isinstance(path, os.DirEntry):
+            if path.is_symlink() or not path.is_dir():
+                return False
+            name = path.name
+            fs_path = path.path
+        else:
+            path = Path(path)
+            if path.is_symlink() or not path.is_dir():
+                return False
+            name = path.name
+            fs_path = os.fspath(path)
+    except OSError:
+        return False
+    if os.path.splitext(name)[1].lower() in PACKAGE_EXTENSIONS:
+        return True
+    if platform == "darwin":
+        # Best effort only: a missing xattr, a short value, or a platform
+        # without getxattr all mean "not a package by this test".
+        try:
+            info = os.getxattr(fs_path, "com.apple.FinderInfo")
+        except (OSError, AttributeError):
+            return False
+        if len(info) >= 10:
+            flags = int.from_bytes(info[8:10], "big")
+            return bool(flags & _FINDER_PACKAGE_BIT)
+    return False
+
+
+def _iter_package_files(root):
+    """Yield ``(relative_path, size, mtime_ns)`` for every regular file inside ``root``.
+
+    The walk descends into every subdirectory, including nested packages:
+    they are part of the outer package's fingerprint, not items of their
+    own. Symlinks are skipped, like everywhere else in a scan, and
+    unreadable entries are skipped with a warning instead of failing the
+    whole fingerprint.
+    """
+    stack = [(Path(root), "")]
+    while stack:
+        dirpath, relprefix = stack.pop()
+        try:
+            with os.scandir(dirpath) as entries:
+                entries = list(entries)
+        except OSError as ex:
+            logging.warning("Couldn't list %s while fingerprinting a package: %s", dirpath, ex)
+            continue
+        for entry in entries:
+            try:
+                if entry.is_symlink():
+                    continue
+                if entry.is_dir(follow_symlinks=False):
+                    stack.append((Path(entry.path), relprefix + entry.name + "/"))
+                elif entry.is_file(follow_symlinks=False):
+                    stat = entry.stat(follow_symlinks=False)
+                    yield (relprefix + entry.name, stat.st_size, stat.st_mtime_ns)
+            except OSError as ex:
+                logging.warning("Couldn't stat %s while fingerprinting a package: %s", entry.path, ex)
+
+
+def _package_fingerprint(root):
+    """Fingerprint of a package's interior tree plus its own mtime.
+
+    The fingerprint is a hash of the sorted ``(relative path, size,
+    mtime_ns)`` of every file inside the package, plus the package
+    directory's own ``mtime_ns``. File contents are never read: the point
+    is a cheap fingerprint, and a content change normally moves the file's
+    size or mtime. (A change that preserves both -- a timestamp-preserving
+    copy of identical-size content -- is invisible to it, the same as to
+    any mtime-based check.)
+
+    The fingerprint is deliberately NOT stored in the FilesDB digest
+    cache: a package root's stat does not change when an interior file's
+    contents change, so a cache keyed on the root stat would go stale and
+    report two different packages as identical. Folder digests are never
+    cached in FilesDB anyway (``Folder._read_info`` computes them
+    directly), so packages simply follow the existing Folder path and the
+    fingerprint is recomputed on every scan. The walk only stats files, so
+    that recomputation is cheap.
+    """
+    try:
+        root_mtime_ns = Path(root).stat().st_mtime_ns
+    except OSError as ex:
+        logging.warning("Couldn't stat %s while fingerprinting a package: %s", root, ex)
+        root_mtime_ns = 0
+    digest = hasher()
+    digest.update(f"root\0{root_mtime_ns}\n".encode("utf-8"))
+    for relpath, size, mtime_ns in sorted(_iter_package_files(root)):
+        digest.update(f"{relpath}\0{size}\0{mtime_ns}\n".encode("utf-8", "surrogateescape"))
+    return digest.digest()
 
 
 class FSError(Exception):
@@ -506,6 +651,16 @@ class Folder(File):
         self.size = NOT_SET
         self._subfolders = None
 
+    @property
+    def is_package(self):
+        """Whether this folder is a macOS package (an opaque bundle).
+
+        A package is scanned as one item: it is never descended into, its
+        size is the total size of its contents, and its digest is a
+        fingerprint of its interior tree (see :func:`_package_fingerprint`).
+        """
+        return is_package_dir(self.path)
+
     def _all_items(self):
         folders = self.subfolders
         files = get_files(self.path)
@@ -514,30 +669,49 @@ class Folder(File):
     def _read_info(self, field):
         # print(f"_read_info({field}) for Folder {self}")
         if field in {"size", "mtime"}:
-            size = sum((f.size for f in self._all_items()), 0)
-            self.size = size
+            if self.is_package:
+                # Never descend: the size is the sum of the interior files,
+                # from the same stat-only walk the fingerprint uses.
+                self.size = sum(size for _, size, _ in _iter_package_files(self.path))
+            else:
+                size = sum((f.size for f in self._all_items()), 0)
+                self.size = size
             stats = self.path.stat()
             self.mtime = nonone(stats.st_mtime, 0)
         elif field in {"digest", "digest_partial", "digest_samples"}:
-            # What's sensitive here is that we must make sure that subfiles'
-            # digest are always added up in the same order, but we also want a
-            # different digest if a file gets moved in a different subdirectory.
+            if self.is_package:
+                # One fingerprint serves all three digest kinds: a package
+                # has no partial/sample digests of its own, and setting all
+                # three at once means the tree is walked only once.
+                digest = _package_fingerprint(self.path)
+                self.digest = digest
+                self.digest_partial = digest
+                self.digest_samples = digest
+            else:
+                # What's sensitive here is that we must make sure that subfiles'
+                # digest are always added up in the same order, but we also want a
+                # different digest if a file gets moved in a different subdirectory.
 
-            def get_dir_digest_concat():
-                items = self._all_items()
-                items.sort(key=lambda f: f.path)
-                digests = [getattr(f, field) for f in items]
-                return b"".join(digests)
+                def get_dir_digest_concat():
+                    items = self._all_items()
+                    items.sort(key=lambda f: f.path)
+                    digests = [getattr(f, field) for f in items]
+                    return b"".join(digests)
 
-            digest = hasher(get_dir_digest_concat()).digest()
-            setattr(self, field, digest)
+                digest = hasher(get_dir_digest_concat()).digest()
+                setattr(self, field, digest)
 
     @property
     def subfolders(self):
         if self._subfolders is None:
-            with os.scandir(self.path) as iter:
-                subfolders = [p for p in iter if not p.is_symlink() and p.is_dir()]
-            self._subfolders = [self.__class__(p) for p in subfolders]
+            if self.is_package:
+                # A package is opaque: never descend into it, so it has no
+                # subfolders as far as a scan is concerned.
+                self._subfolders = []
+            else:
+                with os.scandir(self.path) as iter:
+                    subfolders = [p for p in iter if not p.is_symlink() and p.is_dir()]
+                self._subfolders = [self.__class__(p) for p in subfolders]
         return self._subfolders
 
     @classmethod
@@ -560,6 +734,13 @@ def get_file(path, fileclasses=[File]):
 
 def get_files(path, fileclasses=[File]):
     """Returns a list of :class:`File` for each file contained in ``path``.
+
+    Only files are returned, never directories: a package directory inside
+    ``path`` is not yielded here. It surfaces as a :class:`Folder` through
+    ``Folder.subfolders`` instead (see :func:`is_package_dir`), which is
+    what keeps a parent folder from counting a package twice -- once as a
+    subfolder and once here -- in its size and digest. The scan walk in
+    :mod:`core.directories` is what yields a package as a single item.
 
     :param Path path: path to scan
     :param fileclasses: List of candidate :class:`File` classes

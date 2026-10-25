@@ -831,7 +831,10 @@ class DupeCleaner(Broadcaster):
             if scanner.scan_type == ScanType.FOLDERS:
                 files = list(self.directories.get_folders(folderclass=se.fs.Folder, j=j))
             else:
-                files = list(self.directories.get_files(fileclasses=self.fileclasses, j=j))
+                # folderclass matters here too: a macOS package met during
+                # the walk is yielded as one Folder item, and it needs the
+                # edition's Folder so its rows display in the results table.
+                files = list(self.directories.get_files(fileclasses=self.fileclasses, folderclass=se.fs.Folder, j=j))
             if self.options["ignore_hardlink_matches"]:
                 files = self._remove_hardlink_dupes(files)
             logging.info("Scanning %d files" % len(files))
