@@ -187,12 +187,15 @@ def package_windows():
     )
     # remove version info file
     os.remove("win_version_info.txt")
-    # Call NSIS (TODO update to not use hardcoded path)
-    cmd = (
-        '"C:\\Program Files (x86)\\NSIS\\Bin\\makensis.exe" '
-        "/DVERSIONMAJOR={0} /DVERSIONMINOR={1} /DVERSIONPATCH={2} /DBITS={3} setup.nsi"
-    )
-    print_and_do(cmd.format(version_array[0], version_array[1], version_array[2], bits))
+    # Call NSIS. Prefer it from PATH (the GitHub Windows runners ship it
+    # there); fall back to the classic install location. The exit code is
+    # checked: a missing makensis used to fail silently here, producing a
+    # "successful" build with no installer.
+    makensis = shutil.which("makensis") or r"C:\Program Files (x86)\NSIS\Bin\makensis.exe"
+    cmd = '"{0}" /DVERSIONMAJOR={1} /DVERSIONMINOR={2} /DVERSIONPATCH={3} /DBITS={4} setup.nsi'
+    ret = print_and_do(cmd.format(makensis, version_array[0], version_array[1], version_array[2], bits))
+    if ret != 0:
+        raise RuntimeError("makensis failed with exit code %d" % ret)
 
 
 def package_macos():
