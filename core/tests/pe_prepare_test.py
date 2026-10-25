@@ -11,7 +11,7 @@ import multiprocessing
 import os
 from pathlib import Path
 
-from PyQt5.QtGui import QImage
+import pytest
 
 from hscommon.jobprogress import job as jobmod
 from hscommon.jobprogress.job import Job
@@ -20,7 +20,22 @@ from hscommon.testutil import eq_
 from core.pe import matchblock
 from core.pe.cache_sqlite import SqliteCache
 from core.pe.matchblock import _prepare_picture_task, prepare_pictures
-from qt.pe.photo import File as QtPhoto
+
+try:
+    # PyQt5 is not installed on Linux CI (requirements.txt excludes it
+    # there), so the Qt-dependent tests below are skipped in that case.
+    # The fake-photo tests still run everywhere and exercise the pool.
+    from PyQt5.QtGui import QImage
+
+    from qt.pe.photo import File as QtPhoto
+
+    HAS_QT = True
+except ImportError:
+    QImage = None
+    QtPhoto = None
+    HAS_QT = False
+
+requires_qt = pytest.mark.skipif(not HAS_QT, reason="PyQt5 is not installed")
 
 BLACK_BLOCKS = [(0, 0, 0)] * 225
 
@@ -52,6 +67,7 @@ def cache_contents(dbpath):
     return result
 
 
+@requires_qt
 def test_parallel_prep_matches_sequential(tmpdir, monkeypatch):
     # 40 pictures: enough to trigger the pool (>= 32). The parallel run
     # and the forced-sequential run must produce the same prepared list
@@ -78,6 +94,7 @@ def test_parallel_prep_matches_sequential(tmpdir, monkeypatch):
     eq_(cache_contents(db_parallel), cache_contents(db_seq))
 
 
+@requires_qt
 def test_rotated_parallel_matches_sequential(tmpdir, monkeypatch):
     # Rotated scans compute 8 block lists per picture; they must agree too.
     pics_parallel = make_photos(tmpdir, 5)
@@ -180,6 +197,7 @@ def test_unreadable_picture_is_skipped_in_parallel(tmpdir):
     cache.close()
 
 
+@requires_qt
 def test_corrupt_image_does_not_crash_parallel_prep(tmpdir):
     # A real .jpg that is not an image at all, mixed into a pool-sized
     # batch. It must not crash the scan; it is prepared with empty blocks.
@@ -193,6 +211,7 @@ def test_corrupt_image_does_not_crash_parallel_prep(tmpdir):
     assert cache_contents(dbpath)[str(bad_path)][0] == []
 
 
+@requires_qt
 def test_spawn_worker_decodes_with_qimage(tmpdir):
     # The key risk for the frozen macOS app: QImage decoding must work in
     # a *spawned* worker (a fresh interpreter, as macOS uses), not just
@@ -217,6 +236,7 @@ def test_spawn_worker_decodes_with_qimage(tmpdir):
             eq_(pic.get_blocks(matchblock.BLOCK_COUNT_PER_SIDE, orientation), blocks[orientation - 1])
 
 
+@requires_qt
 def test_pool_failure_falls_back_to_sequential(tmpdir, monkeypatch):
     # If the pool cannot even start, preparation falls back to the
     # sequential loop and produces identical results.
@@ -237,6 +257,7 @@ def test_pool_failure_falls_back_to_sequential(tmpdir, monkeypatch):
     eq_(cache_contents(db_parallel), cache_contents(db_seq))
 
 
+@requires_qt
 def test_prepare_reports_progress(tmpdir):
     pics = make_photos(tmpdir, 40)
     seen = []
