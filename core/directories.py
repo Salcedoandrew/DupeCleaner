@@ -128,6 +128,12 @@ class Directories:
                 for item in iter:
                     j.check_if_cancelled()
                     try:
+                        if item.is_symlink():
+                            # Never follow symlinks: recursing into a
+                            # symlinked dir would collect the same inode
+                            # twice (as two different paths) and trashing
+                            # the symlink path would delete the real file.
+                            continue
                         if item.is_dir():
                             if skip_dirs:
                                 continue
@@ -304,7 +310,14 @@ class Directories:
                 continue
             path = attrib["path"]
             state = attrib["value"]
-            self.states[Path(path)] = int(state)
+            try:
+                state = int(state)
+            except (ValueError, TypeError):
+                # Corrupt/foreign config value: skip this entry rather than
+                # raising out of App.load() and refusing to start until the
+                # config is hand-deleted.
+                continue
+            self.states[Path(path)] = state
 
     def save_to_file(self, outfile):
         """Save folder selection as XML to ``outfile``.

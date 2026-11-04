@@ -9,6 +9,7 @@ import datetime
 import os
 import os.path as op
 import logging
+import shlex
 import subprocess
 import re
 import shutil
@@ -241,7 +242,26 @@ class DupeCleaner(Broadcaster):
         # trashes the new version while the untouched reference stays. Raising
         # OSError records it as a problem and leaves the file in the results
         # (see perform_on_marked), instead of deleting it.
-        if not op.isdir(str(dupe.path)):
+        if op.isdir(str(dupe.path)):
+            # A folder that gained files since the scan must not be deleted
+            # wholesale: re-walk it and compare its size against the scan.
+            # Symlinks are skipped here, as they are during the scan.
+            fresh_size = 0
+            for dirpath, dirnames, filenames in os.walk(str(dupe.path)):
+                for name in filenames:
+                    filepath = op.join(dirpath, name)
+                    if op.islink(filepath):
+                        continue
+                    try:
+                        fresh_size += os.path.getsize(filepath)
+                    except OSError:
+                        continue
+            if fresh_size != dupe.size:
+                raise OSError(
+                    f"'{dupe.path}' changed since it was scanned "
+                    f"(size {dupe.size} -> {fresh_size}); not deleting it"
+                )
+        else:
             try:
                 current = dupe.path.stat()
             except OSError:
@@ -253,6 +273,17 @@ class DupeCleaner(Broadcaster):
                 )
         logging.debug("Sending '%s' to trash", dupe.path)
         str_path = str(dupe.path)
+        tmp_link_path = None
+        if link_deleted:
+            # Create the replacement link at a temp name FIRST, then atomically
+            # rename it over the deleted file. If link creation fails (e.g.
+            # cross-device hardlink), the original file is still intact because
+            # nothing has been deleted yet.
+            group = self.results.get_group_of_duplicate(dupe)
+            ref = group.ref
+            linkfunc = os.link if use_hardlinks else os.symlink
+            tmp_link_path = str_path + ".dc-tmp-link"
+            linkfunc(str(ref.path), tmp_link_path)
         if direct_deletion:
             if op.isdir(str_path):
                 shutil.rmtree(str_path)
@@ -261,10 +292,7 @@ class DupeCleaner(Broadcaster):
         else:
             send2trash(str_path)  # Raises OSError when there's a problem
         if link_deleted:
-            group = self.results.get_group_of_duplicate(dupe)
-            ref = group.ref
-            linkfunc = os.link if use_hardlinks else os.symlink
-            linkfunc(str(ref.path), str_path)
+            os.replace(tmp_link_path, str_path)
         self.clean_empty_dirs(dupe.path.parent)
 
     def _create_file(self, path):
@@ -446,6 +474,12 @@ class DupeCleaner(Broadcaster):
     def copy_or_move(self, dupe, copy: bool, destination: str, dest_type: DestType):
         source_path = dupe.path
         location_path = first(p for p in self.directories if p in dupe.path.parents)
+        if location_path is None:
+            # Can happen when results were loaded from a file saved on
+            # another machine: the dupe isn't under any known root dir.
+            # Raise OSError so perform_on_marked records it as a per-file
+            # problem instead of crashing the whole job with AttributeError.
+            raise OSError(f"'{source_path}' is not under any known root directory")
         dest_path = Path(destination)
         if dest_type in {DestType.RELATIVE, DestType.ABSOLUTE}:
             # no filename, no windows drive letter
@@ -561,8 +595,10 @@ class DupeCleaner(Broadcaster):
         dupes = self.selected_dupes
         refs = [self.results.get_group_of_duplicate(dupe).ref for dupe in dupes]
         for dupe, ref in zip(dupes, refs):
-            dupe_cmd = cmd.replace("%d", str(dupe.path))
-            dupe_cmd = dupe_cmd.replace("%r", str(ref.path))
+            # Paths are shell-quoted: a filename like 'x"; rm -rf ~ #.mp3'
+            # must not be able to break out of the custom command string.
+            dupe_cmd = cmd.replace("%d", shlex.quote(str(dupe.path)))
+            dupe_cmd = dupe_cmd.replace("%r", shlex.quote(str(ref.path)))
             match = re.match(r'"([^"]+)"(.*)', dupe_cmd)
             if match is not None:
                 # This code here is because subprocess. Popen doesn't seem to accept, under Windows,

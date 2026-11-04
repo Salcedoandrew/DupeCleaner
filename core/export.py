@@ -9,6 +9,7 @@
 import os.path as op
 from tempfile import mkdtemp
 import csv
+import html
 
 # Yes, this is a very low-tech solution, but at least it doesn't have all these annoying dependency
 # and resource problems.
@@ -129,8 +130,8 @@ def export_to_xhtml(colnames, rows):
             indented = ""
         else:
             indented = "indented"
-        filename = row[1]
-        cells = "".join(CELL_TEMPLATE.format(value=value) for value in row[2:])
+        filename = html.escape(str(row[1]))
+        cells = "".join(CELL_TEMPLATE.format(value=html.escape(str(value))) for value in row[2:])
         rendered_rows.append(ROW_TEMPLATE.format(indented=indented, filename=filename, cells=cells))
         previous_group_id = row[0]
     rendered_rows = "".join(rendered_rows)
