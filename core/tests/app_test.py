@@ -400,6 +400,31 @@ class TestCaseDupeCleanerWithResults:
         app.start_scanning()  # will be cancelled immediately
         eq_(len(app.result_table), 0)
 
+    def test_scan_during_scan_keeps_previous_results(self, do_setup):
+        # Clicking Scan while a scan is already running must not wipe the
+        # current results: the guard fires before the results are cleared.
+        import threading
+
+        app = self.app
+        objects, matches, groups = GetTestGroups()
+        app.results.groups = groups
+        started = threading.Event()
+        release = threading.Event()
+
+        def blocking_job():
+            started.set()
+            release.wait(timeout=5)
+
+        app.progress_window.run_threaded(blocking_job, ())
+        assert started.wait(timeout=5)
+        try:
+            add_fake_files_to_directories(app.directories, objects)
+            app.start_scanning()
+        finally:
+            release.set()
+        eq_(groups, app.results.groups)
+        assert any("hanging in there" in m for m in app.view.messages)
+
     def test_selected_dupes_after_removal(self, do_setup):
         # Purge the app's `selected_dupes` attribute when removing dupes, or else it might cause a
         # crash later with None refs.

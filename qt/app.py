@@ -297,6 +297,11 @@ class DupeCleaner(QObject):
         self.prefs.save()
         self.model.save()
         self.model.close()
+        # Cancel any running job before quitting: without this, quitting
+        # mid-scan left the scan thread holding the process open. The job
+        # stops cooperatively on cancellation; the worker thread is a
+        # daemon as a last resort, so the process always exits.
+        self.model.progress_window.cancel()
         # Workaround for #857, hide() or close().
         if self.details_dialog is not None:
             self.details_dialog.close()

@@ -242,13 +242,18 @@ def prepare_pictures(pictures, cache_path, with_dimensions, match_rotated, j=job
                 continue
             logging.debug("Analyzing picture at %s", picture.unicode_path)
             try:
-                needs_compute = picture.unicode_path not in cache or (
-                    match_rotated and any(block == [] for block in cache[picture.unicode_path])
-                )
-            except (OSError, ValueError) as e:
+                cached_blocks = cache[picture.unicode_path] if picture.unicode_path in cache else None
+            except ValueError as e:
+                # Corrupt cache entry (e.g. a block blob with the wrong
+                # shape): drop it and recompute the blocks below instead of
+                # trusting it or skipping the picture.
+                logging.warning("Ignoring corrupt picture cache entry for %s: %s", picture.unicode_path, e)
+                cached_blocks = None
+            except OSError as e:
                 logging.warning(str(e))
                 tick()
                 continue
+            needs_compute = cached_blocks is None or (match_rotated and any(block == [] for block in cached_blocks))
             if needs_compute:
                 to_compute.append((index, picture))
             else:

@@ -22,11 +22,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # ubuntu-24.04, not ubuntu-latest: the 3.8/3.9 interpreters in the
-        # matrix are not available on the Ubuntu 26.04 runners that
-        # ubuntu-latest now points at, so setup-python fails there.
+        # Python 3.11 is the oldest supported version: 3.7/3.8/3.9 are
+        # EOL and 3.10 went EOL 2026-10-31. ubuntu-24.04, not
+        # ubuntu-latest: the Ubuntu 26.04 runners that ubuntu-latest now
+        # points at lack some interpreters setup-python needs.
         os: [ubuntu-24.04]
-        python-version: [3.8, 3.9, "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
         include:
           - os: windows-latest
             python-version: "3.12"

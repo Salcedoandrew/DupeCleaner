@@ -575,6 +575,43 @@ class TestCaseGetMatchesByContents:
         r = getmatches_by_contents(f, bigsize=bigsize)
         eq_(1, len(r))
 
+    def test_large_same_size_group_matches_identically(self):
+        # Regression test for the O(n^2) same-size matching: a big group of
+        # files sharing one size must yield exactly the pairs whose digests
+        # agree -- no more, no less -- without comparing every pair.
+        f = [no("file%d" % i, size=100) for i in range(200)]
+        for i, o in enumerate(f):
+            o.digest_partial = o.digest = "unique-%d" % i
+        # Two genuine duplicate pairs inside the group.
+        f[10].digest_partial = f[10].digest = "dup-a"
+        f[11].digest_partial = f[11].digest = "dup-a"
+        f[20].digest_partial = f[20].digest = "dup-b"
+        f[21].digest_partial = f[21].digest = "dup-b"
+        # Two ref files sharing a digest must not match each other.
+        f[30].digest_partial = f[30].digest = "dup-ref"
+        f[31].digest_partial = f[31].digest = "dup-ref"
+        f[30].is_ref = f[31].is_ref = True
+        # A file with unknown digests never matches, even in a big group.
+        f[40].digest_partial = f[40].digest = None
+        r = getmatches_by_contents(f)
+        eq_(2, len(r))
+        pairs = {(m.first.name, m.second.name) for m in r}
+        assert ("file10", "file11") in pairs or ("file11", "file10") in pairs
+        assert ("file20", "file21") in pairs or ("file21", "file20") in pairs
+
+    def test_large_same_size_group_is_fast(self):
+        # 20,000 same-size files with distinct digests: the old pairwise
+        # loop needed ~200M comparisons here; digest grouping is linear.
+        import time
+
+        f = [no("file%d" % i, size=100) for i in range(20000)]
+        for i, o in enumerate(f):
+            o.digest_partial = o.digest = "unique-%d" % i
+        start = time.monotonic()
+        r = getmatches_by_contents(f)
+        eq_(0, len(r))
+        assert time.monotonic() - start < 10
+
 
 class TestCaseGroup:
     def test_empty(self):

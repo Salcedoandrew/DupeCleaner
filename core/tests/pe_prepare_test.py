@@ -23,9 +23,11 @@ from core.pe.cache_sqlite import SqliteCache
 from core.pe.matchblock import _prepare_picture_task, prepare_pictures
 
 try:
-    # PyQt5 is not installed on Linux CI (requirements.txt excludes it
-    # there), so the Qt-dependent tests below are skipped in that case.
-    # The fake-photo tests still run everywhere and exercise the pool.
+    # The Qt-dependent tests below need PyQt5. It is in
+    # requirements-extra.txt (Linux CI installs it) precisely so these
+    # tests run instead of silently skipping -- if it is missing, the
+    # test_pyqt5_is_installed test below fails loudly rather than
+    # letting the skips go unnoticed.
     from PyQt5.QtGui import QImage
 
     from qt.pe.photo import File as QtPhoto
@@ -37,6 +39,14 @@ except ImportError:
     HAS_QT = False
 
 requires_qt = pytest.mark.skipif(not HAS_QT, reason="PyQt5 is not installed")
+
+
+def test_pyqt5_is_installed():
+    # The real-photo tests below skip silently without PyQt5, which once
+    # hid that Linux CI never ran them. Fail loudly instead: install it
+    # with `pip install -r requirements-extra.txt`.
+    import PyQt5  # noqa: F401
+
 
 BLACK_BLOCKS = [(0, 0, 0)] * 225
 

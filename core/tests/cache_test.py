@@ -16,6 +16,13 @@ except ImportError:
     skip("Can't import the cache module, probably hasn't been compiled.")
 
 
+def valid_blocks():
+    # A realistic cached entry: 8 slots of 225 blocks each (the 15x15 grid
+    # the matcher stores). The cache rejects any other non-empty shape on
+    # read, so tests must store realistic shapes to read them back.
+    return [[(0, 0, 0)] * 225] * 8
+
+
 class TestCaseColorsToString:
     def test_no_color(self):
         eq_(b"", colors_to_bytes([]))
@@ -59,7 +66,14 @@ class BaseTestCaseCache:
 
     def test_set_then_retrieve_blocks(self):
         c = self.get_cache()
-        b = [[(0, 0, 0), (1, 2, 3)]] * 8
+        b = valid_blocks()
+        c["foo"] = b
+        eq_(b, c["foo"])
+
+    def test_empty_slots_are_valid(self):
+        # An empty slot (orientation not computed) is a legal shape.
+        c = self.get_cache()
+        b = [[]] * 8
         c["foo"] = b
         eq_(b, c["foo"])
 
@@ -74,10 +88,10 @@ class BaseTestCaseCache:
     def test_persistance(self, tmpdir):
         DBNAME = tmpdir.join("hstest.db")
         c = self.get_cache(str(DBNAME))
-        c["foo"] = [[(1, 2, 3)]] * 8
+        c["foo"] = valid_blocks()
         del c
         c = self.get_cache(str(DBNAME))
-        eq_([[(1, 2, 3)]] * 8, c["foo"])
+        eq_(valid_blocks(), c["foo"])
 
     def test_filter(self):
         c = self.get_cache()
@@ -104,7 +118,7 @@ class BaseTestCaseCache:
     def test_by_id(self):
         # it's possible to use the cache by referring to the files by their row_id
         c = self.get_cache()
-        b = [[(0, 0, 0), (1, 2, 3)]] * 8
+        b = valid_blocks()
         c["foo"] = b
         foo_id = c.get_id("foo")
         eq_(c[foo_id], b)
@@ -127,10 +141,41 @@ class TestCaseSqliteCache(BaseTestCaseCache):
         fp.write("invalid sqlite content")
         fp.close()
         c = self.get_cache(dbname)  # should not raise a DatabaseError
-        c["foo"] = [[(1, 2, 3)]] * 8
+        c["foo"] = valid_blocks()
         del c
         c = self.get_cache(dbname)
-        eq_(c["foo"], [[(1, 2, 3)]] * 8)
+        eq_(c["foo"], valid_blocks())
+
+    def test_getitem_rejects_wrong_shape(self):
+        # A cached row whose blob decodes to anything other than 0 or 225
+        # blocks must never be trusted: reading it raises ValueError so
+        # the matcher recomputes the picture instead of matching garbage.
+        c = self.get_cache()
+        c["foo"] = valid_blocks()
+        c.con.execute(
+            "update pictures set blocks = ? where path = ?",
+            (colors_to_bytes([(1, 2, 3)] * 3), "foo"),
+        )
+        c.con.commit()
+        with raises(ValueError):
+            c["foo"]
+
+    def test_get_multiple_skips_wrong_shape(self):
+        # The bulk read used by the matcher skips corrupt rows (with a
+        # warning) instead of handing garbage blocks to the comparison.
+        c = self.get_cache()
+        c["foo"] = valid_blocks()
+        c["bar"] = valid_blocks()
+        c.con.execute(
+            "update pictures set blocks = ? where path = ?",
+            (colors_to_bytes([(1, 2, 3)] * 3), "bar"),
+        )
+        c.con.commit()
+        foo_id = c.get_id("foo")
+        bar_id = c.get_id("bar")
+        rows = list(c.get_multiple([foo_id, bar_id]))
+        eq_(1, len(rows))
+        eq_(foo_id, rows[0][0])
 
     def test_purge_outdated_replaced_within_same_second(self, tmpdir):
         # Replacing a photo within the same second must purge its cached

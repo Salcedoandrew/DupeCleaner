@@ -58,6 +58,31 @@ def test_oriented_photos_match_in_default_scan(tmpdir):
     eq_(100, matches[0][2])
 
 
+def test_prepare_pictures_recomputes_corrupt_cache_entry(tmpdir):
+    # A cache row with a wrong-shape blob must be recomputed, not trusted
+    # and not skipped: the picture stays in the prepared list and the
+    # cache ends up holding valid 225-block slots.
+    from core.pe.cache import colors_to_bytes
+
+    dbpath = str(tmpdir.join("piccache.db"))
+    p = tmpdir.join("p1.jpg")
+    p.write_binary(b"x")
+    pic = FakePhoto(str(p), orientation=6)
+    cache = SqliteCache(dbpath)
+    cache[pic.unicode_path] = [BLACK_BLOCKS] * 8
+    cache.con.execute(
+        "update pictures set blocks = ? where path = ?",
+        (colors_to_bytes([(1, 2, 3)] * 3), pic.unicode_path),
+    )
+    cache.con.commit()
+    cache.close()
+    prepared = prepare_pictures([pic], dbpath, with_dimensions=False, match_rotated=False, j=jobmod.nulljob)
+    eq_(1, len(prepared))
+    cache = SqliteCache(dbpath)
+    eq_(list(BLACK_BLOCKS), cache[pic.unicode_path][0])
+    cache.close()
+
+
 class FakeExifPic:
     def __init__(self, name, timestamp, digest, dimensions=(100, 100)):
         self.name = name
