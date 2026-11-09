@@ -2,8 +2,10 @@
 # which should be included with this package. The terms are also available at
 # http://www.gnu.org/licenses/gpl-3.0.html
 
+import threading
+
 from PyQt5.QtCore import QObject, Qt, QSize, QRectF, QPointF, QPoint, pyqtSlot, pyqtSignal, QEvent
-from PyQt5.QtGui import QPixmap, QPainter, QPalette, QCursor, QIcon, QKeySequence
+from PyQt5.QtGui import QImage, QPixmap, QPainter, QPalette, QCursor, QIcon, QKeySequence
 from PyQt5.QtWidgets import (
     QGraphicsView,
     QGraphicsScene,
@@ -24,6 +26,43 @@ tr = trget("ui")
 
 MAX_SCALE = 12.0
 MIN_SCALE = 0.1
+
+
+class _ImageLoadRequest(QObject):
+    """Decodes one image file off the GUI thread and reports back.
+
+    ``QImage`` is reentrant, so decoding in a worker thread is safe; the
+    ``QPixmap`` is built on the GUI thread in
+    :meth:`BaseController._apply_loaded_image` (``QPixmap`` is not
+    thread-safe). ``loaded`` is emitted from the worker thread and
+    received by this GUI-thread object, so ``_on_loaded`` runs on the GUI
+    thread (queued connection).
+    """
+
+    loaded = pyqtSignal(QImage)
+
+    def __init__(self, controller, token, role, path):
+        super().__init__()
+        self._controller = controller
+        self._token = token
+        self._role = role
+        self._path = path
+        self.loaded.connect(self._on_loaded)
+
+    def start(self):
+        thread = threading.Thread(target=self._load, daemon=True)
+        thread.start()
+
+    def _load(self):
+        self.loaded.emit(QImage(self._path))
+
+    def _on_loaded(self, image):
+        try:
+            self._controller._apply_loaded_image(self._token, self._role, image)
+        except RuntimeError:
+            # The controller was deleted while the decode was running
+            # (e.g. the dialog closed): nothing left to report to.
+            pass
 
 
 def create_actions(actions, target):
@@ -163,6 +202,16 @@ class BaseController(QObject):
         self.parent = parent  # To change buttons' states
         self.cached_group = None
         self.same_dimensions = True
+        # State for the off-GUI-thread image loads (see updateView):
+        # _load_token identifies the latest selection, _pending_load_roles
+        # the loads still outstanding for it, _pending_load_requests keeps
+        # the in-flight requests alive, and the _load_* fields remember
+        # what _finish_load has to do once they all arrive.
+        self._load_token = 0
+        self._pending_load_roles = set()
+        self._pending_load_requests = []
+        self._load_same_group = True
+        self._load_previous_same_dimensions = True
 
     def setupViewers(self, selected_viewer, reference_viewer):
         self.selectedViewer = selected_viewer
@@ -185,20 +234,73 @@ class BaseController(QObject):
             self.resetState()
         self.cached_group = group
 
-        self.selectedPixmap = QPixmap(str(dupe.path))
+        self._load_same_group = same_group
+        self._load_previous_same_dimensions = previous_same_dimensions
         if ref is dupe:  # currently selected file is the actual reference file
-            self.referencePixmap = QPixmap()
+            self.scaledSelectedPixmap = QPixmap()
             self.scaledReferencePixmap = QPixmap()
             self.parent.verticalToolBar.buttonImgSwap.setEnabled(False)
             self.parent.verticalToolBar.buttonNormalSize.setEnabled(True)
         else:
-            self.referencePixmap = QPixmap(str(ref.path))
             self.parent.verticalToolBar.buttonImgSwap.setEnabled(True)
             if ref.dimensions != dupe.dimensions:
                 self.same_dimensions = False
             self.parent.verticalToolBar.buttonNormalSize.setEnabled(True)
-        self.updateButtonsAsPerDimensions(previous_same_dimensions)
+        # Decode the (possibly huge) photos off the GUI thread: decoding
+        # on it froze the dialog on every selection change. The pixmaps
+        # stay null until the loads finish; _finish_load runs the
+        # post-decode display steps then.
+        self._start_async_loads(ref, dupe)
+        # Show the (empty) viewers immediately; the loaded pixmaps fill
+        # them in as they arrive.
         self.updateBothImages(same_group)
+        self.centerViews(same_group and self.referencePixmap.isNull())
+
+    def _start_async_loads(self, ref, dupe):
+        """Start off-thread decodes for the selected and reference photos.
+
+        Clears the cached pixmaps immediately (so a stale photo is never
+        shown as the new selection). A load from an earlier selection is
+        ignored on arrival: each load carries the token of the selection
+        that started it, and only the latest token's loads are applied.
+        """
+        self._load_token += 1
+        token = self._load_token
+        self.selectedPixmap = QPixmap()
+        self.referencePixmap = QPixmap()
+        self._pending_load_roles = {"selected"}
+        self._pending_load_requests = []
+        self._request_load(token, "selected", dupe.path)
+        if ref is not dupe:
+            self._pending_load_roles.add("reference")
+            self._request_load(token, "reference", ref.path)
+
+    def _request_load(self, token, role, path):
+        request = _ImageLoadRequest(self, token, role, str(path))
+        self._pending_load_requests.append(request)
+        request.start()
+
+    def _apply_loaded_image(self, token, role, image):
+        """Apply a finished decode. Runs on the GUI thread."""
+        if token != self._load_token:
+            return  # Stale load from a previous selection; ignore it.
+        pixmap = QPixmap.fromImage(image) if not image.isNull() else QPixmap()
+        if role == "selected":
+            self.selectedPixmap = pixmap
+        else:
+            self.referencePixmap = pixmap
+        self._pending_load_roles.discard(role)
+        if not self._pending_load_roles:
+            self._finish_load(token)
+
+    def _finish_load(self, token):
+        if token != self._load_token:
+            return
+        self.updateButtonsAsPerDimensions(self._load_previous_same_dimensions)
+        self.updateBothImages(self._load_same_group)
+        self._center_after_load(self._load_same_group)
+
+    def _center_after_load(self, same_group):
         self.centerViews(same_group and self.referencePixmap.isNull())
 
     def updateBothImages(self, same_group=False):
@@ -596,20 +698,25 @@ class GraphicsViewController(BaseController):
             self.resetState()
         self.cached_group = group
 
-        self.selectedPixmap = QPixmap(str(dupe.path))
+        self._load_same_group = same_group
+        self._load_previous_same_dimensions = previous_same_dimensions
         if ref is dupe:  # currently selected file is the actual reference file
             self.same_dimensions = False
-            self.referencePixmap = QPixmap()
             self.parent.verticalToolBar.buttonImgSwap.setEnabled(False)
             self.parent.verticalToolBar.buttonNormalSize.setEnabled(True)
         else:
-            self.referencePixmap = QPixmap(str(ref.path))
             self.parent.verticalToolBar.buttonImgSwap.setEnabled(True)
             if ref.dimensions != dupe.dimensions:
                 self.same_dimensions = False
             self.parent.verticalToolBar.buttonNormalSize.setEnabled(True)
-        self.updateButtonsAsPerDimensions(previous_same_dimensions)
+        # Photos decode off the GUI thread (see BaseController.updateView).
+        self._start_async_loads(ref, dupe)
         self.updateBothImages(same_group)
+
+    def _center_after_load(self, same_group):
+        # The graphics-view layout centers itself; updateView never
+        # called centerViews().
+        pass
 
     def updateBothImages(self, same_group=False):
         """This is called only during resize events and while bestFit."""

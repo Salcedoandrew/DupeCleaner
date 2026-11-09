@@ -509,35 +509,54 @@ def getmatches_by_contents(files, bigsize=0, j=job.nulljob):
     j.start_job(len(possible_matches), PROGRESS_MESSAGE % (0, 0))
     group_count = 0
     for group in possible_matches:
-        for first, second in itertools.combinations(group, 2):
+        # Same-size groups used to be compared pairwise (O(n^2) per group),
+        # which stalls the scan when thousands of files share a size. Files
+        # can only match when their digests agree, so group by digest
+        # instead: first by partial digest, then by full digest (plus the
+        # samples digest for big files). The match conditions are exactly
+        # the ones the old pair loop checked, so the emitted matches are
+        # identical -- and a file's full digest is still only read when
+        # another file shares its partial digest, preserving the old lazy
+        # hashing behaviour.
+        zero_size = [f for f in group if f.size == 0]
+        for first, second in itertools.combinations(zero_size, 2):
             if first.is_ref and second.is_ref:
                 continue  # Don't spend time comparing two ref pics together.
-            if first.size == 0 and second.size == 0:
-                # skip hashing for zero length files, but only if both files
-                # really exist: a file whose size could not be read falls back
-                # to 0, and two such files must not "match" as empty files.
-                # (Test fakes have no exists() method; they keep the old
-                # behaviour.)
-                if hasattr(first, "exists") and not (first.exists() and second.exists()):
-                    continue
-                result.append(Match(first, second, 100))
+            # skip hashing for zero length files, but only if both files
+            # really exist: a file whose size could not be read falls back
+            # to 0, and two such files must not "match" as empty files.
+            # (Test fakes have no exists() method; they keep the old
+            # behaviour.)
+            if hasattr(first, "exists") and not (first.exists() and second.exists()):
                 continue
-            # if digests are the same (and not None) then files match
-            if first.digest_partial is not None and first.digest_partial == second.digest_partial:
-                if bigsize > 0 and first.size > bigsize:
+            result.append(Match(first, second, 100))
+        by_partial = defaultdict(list)
+        for f in group:
+            if f.size == 0:
+                continue
+            if f.digest_partial is not None:
+                by_partial[f.digest_partial].append(f)
+        for partial_group in by_partial.values():
+            if len(partial_group) < 2:
+                continue
+            by_full = defaultdict(list)
+            for f in partial_group:
+                if bigsize > 0 and f.size > bigsize:
                     # Sampling is only a pre-filter: two big files that agree
                     # on the sampled chunks can still differ elsewhere, so the
                     # full digest has to agree too before we call them a match.
-                    if (
-                        first.digest_samples is not None
-                        and first.digest_samples == second.digest_samples
-                        and first.digest is not None
-                        and first.digest == second.digest
-                    ):
-                        result.append(Match(first, second, 100))
+                    if f.digest_samples is None or f.digest is None:
+                        continue
+                    by_full[(f.digest_samples, f.digest)].append(f)
                 else:
-                    if first.digest is not None and first.digest == second.digest:
-                        result.append(Match(first, second, 100))
+                    if f.digest is None:
+                        continue
+                    by_full[f.digest].append(f)
+            for full_group in by_full.values():
+                for first, second in itertools.combinations(full_group, 2):
+                    if first.is_ref and second.is_ref:
+                        continue  # Don't spend time comparing two ref pics together.
+                    result.append(Match(first, second, 100))
         group_count += 1
         j.add_progress(desc=PROGRESS_MESSAGE % (len(result), group_count))
     return result

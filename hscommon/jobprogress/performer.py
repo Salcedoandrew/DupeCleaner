@@ -28,6 +28,11 @@ class ThreadedJobPerformer:
     _job_running = False
     last_error = None
 
+    @property
+    def job_running(self) -> bool:
+        """Whether a threaded job is currently running."""
+        return self._job_running
+
     # --- Protected
     def create_job(self) -> Job:
         if self._job_running:
@@ -71,4 +76,8 @@ class ThreadedJobPerformer:
         if self._job_running:
             raise JobInProgressError()
         args = (target,) + args
-        Thread(target=self._async_run, args=args).start()
+        # Daemon: quitting the app while a job runs must not leave the
+        # process lingering on this thread. Jobs are still expected to
+        # cooperate with cancellation (Job.check_cancelled); the daemon
+        # flag is the last resort for a job that never notices.
+        Thread(target=self._async_run, args=args, daemon=True).start()

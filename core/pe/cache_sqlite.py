@@ -11,6 +11,22 @@ import sqlite3 as sqlite
 
 from core.pe.cache import bytes_to_colors, colors_to_bytes
 
+# Picture blocks are a 15x15 grid, so each slot holds exactly 225
+# (red, green, blue) tuples -- or is empty when that orientation was not
+# computed. A cached row with any other shape is corrupt (or was written by
+# an incompatible version) and must never be trusted for matching.
+EXPECTED_BLOCK_COUNT = 15 * 15
+
+
+def _validate_blocks(blocks):
+    """Raise ValueError if any slot of ``blocks`` has an impossible shape."""
+    for slot in blocks:
+        if len(slot) not in (0, EXPECTED_BLOCK_COUNT):
+            raise ValueError(
+                "Invalid picture cache entry: expected 0 or %d blocks per slot, got %d"
+                % (EXPECTED_BLOCK_COUNT, len(slot))
+            )
+
 
 class SqliteCache:
     """A class to cache picture blocks in a sqlite backend."""
@@ -65,6 +81,7 @@ class SqliteCache:
         blocks = self.con.execute(sql, [key]).fetchone()
         if blocks:
             result = [bytes_to_colors(block) for block in blocks]
+            _validate_blocks(result)
             return result
         else:
             raise KeyError(key)
@@ -176,22 +193,26 @@ class SqliteCache:
             f"from pictures where rowid in ({ids})"
         )
         cur = self.con.execute(sql)
-        return (
-            (
-                rowid,
-                [
-                    bytes_to_colors(blocks),
-                    bytes_to_colors(blocks2),
-                    bytes_to_colors(blocks3),
-                    bytes_to_colors(blocks4),
-                    bytes_to_colors(blocks5),
-                    bytes_to_colors(blocks6),
-                    bytes_to_colors(blocks7),
-                    bytes_to_colors(blocks8),
-                ],
-            )
-            for rowid, blocks, blocks2, blocks3, blocks4, blocks5, blocks6, blocks7, blocks8 in cur
-        )
+        for rowid, blocks, blocks2, blocks3, blocks4, blocks5, blocks6, blocks7, blocks8 in cur:
+            decoded = [
+                bytes_to_colors(blocks),
+                bytes_to_colors(blocks2),
+                bytes_to_colors(blocks3),
+                bytes_to_colors(blocks4),
+                bytes_to_colors(blocks5),
+                bytes_to_colors(blocks6),
+                bytes_to_colors(blocks7),
+                bytes_to_colors(blocks8),
+            ]
+            try:
+                _validate_blocks(decoded)
+            except ValueError as e:
+                # A corrupt row must never reach the matcher: skip it
+                # (its picture will be treated as having no cached blocks)
+                # instead of silently matching against garbage.
+                logging.warning("Ignoring corrupt picture cache entry for rowid %d: %s", rowid, e)
+                continue
+            yield (rowid, decoded)
 
     def purge_outdated(self):
         """Go through the cache and purge outdated records.

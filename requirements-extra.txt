@@ -2,3 +2,11 @@ pytest>=7,<8
 flake8
 black
 pyinstaller>=6.0,<7.0; sys_platform != 'linux'
+# Docs/build-only deps (sphinx builds the docs, polib compiles the
+# translations; neither is imported by the app at runtime).
+sphinx>=5.3.0,<8.0.0
+polib>=1.1.0,<2.0.0
+# PyQt5 on Linux: the app itself doesn't need it there (the Linux build
+# has no Qt UI), but the photo tests do -- without it they silently skip
+# (see core/tests/pe_prepare_test.py). Keep this so Linux CI runs them.
+PyQt5>=5.15.0,<6.0

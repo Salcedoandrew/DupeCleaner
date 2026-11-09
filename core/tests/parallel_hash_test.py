@@ -89,7 +89,7 @@ def build_tree(root):
     bigsize = 1024 * 1024
 
     def rand(n):
-        # Random.randbytes() is 3.9+; the test matrix still runs 3.8.
+        # Random.randbytes() is 3.9+; the supported floor is 3.11.
         return rng.getrandbits(n * 8).to_bytes(n, "little")
 
     files = {}

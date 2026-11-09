@@ -855,6 +855,18 @@ class DupeCleaner(Broadcaster):
                 setattr(scanner, k, v)
         if self.app_mode == AppMode.PICTURE:
             scanner.cache_path = self._get_picture_cache_path()
+        # Refuse a second scan before touching the current results: the
+        # job guard lives inside _start_job, so without this check a Scan
+        # click during a scan wiped the results and only then failed to
+        # start anything.
+        if self.progress_window.job_running:
+            self.view.show_message(
+                tr(
+                    "A previous action is still hanging in there. You can't start a new one yet. "
+                    "Wait a few seconds, then try again."
+                )
+            )
+            return
         self.results.groups = []
         self._recreate_result_table()
         self._results_changed()
